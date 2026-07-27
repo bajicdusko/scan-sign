@@ -95,24 +95,27 @@ Default sizes are 150 pt wide for the signature and 120 pt for the stamp; overri
 
 ## Hosting it
 
-`python -m scan_sign.server` runs the same UI as a public service: every browser gets its own
-in-memory session (cookie-keyed), and the *save to disk* and *quit* endpoints are switched off so
-a visitor can't write to the host or stop the process. Sessions are dropped after 30 minutes idle,
-capped at 40 at a time, and nothing is ever written to the server's disk.
+`python -m scan_sign.server` runs the same UI as a public service. There is no login: a visitor
+types a name, which starts a private session for that browser. Sessions are held in memory only,
+are never resumed — loading the page again always starts a fresh one — and the *save to disk* and
+*quit* endpoints are switched off so a visitor can't write to the host or stop the process.
+Sessions are dropped on **New**, after 30 minutes idle, or when the 40-session cap evicts them.
+
+The name is a label, not a credential. It identifies your session in the UI; it does not protect
+anything, and it can't be used to get back into a session later.
 
 | env var | default | purpose |
 | --- | --- | --- |
 | `PORT` | `8080` | listen port |
-| `SCAN_SIGN_PASSWORD` | unset | when set, the whole instance sits behind HTTP basic auth |
 | `SCAN_SIGN_MAX_UPLOAD_MB` | `25` | per-file upload cap |
 | `SCAN_SIGN_MAX_PAGES` | `40` | reject PDFs longer than this |
 
 A `railway.json` and `Procfile` are included, so `railway up` deploys it as-is.
 
-**Think before you host this publicly.** People upload their signature to it — that is about the
-most forgeable thing they own. A hosted instance holds it in memory for the length of a session,
-and anyone who can reach the URL can use the tool. Set `SCAN_SIGN_PASSWORD` at minimum, and prefer
-running it locally for anything real.
+**Anyone who can reach the URL can use it.** People upload their signature to this — about the
+most forgeable thing they own. Nothing is written to the server's disk and sessions are isolated
+and short-lived, but a public instance is still a public instance: put it behind your own
+network controls if that matters, and run it locally for anything real.
 
 ## Notes
 

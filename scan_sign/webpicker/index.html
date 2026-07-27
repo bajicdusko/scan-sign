@@ -52,10 +52,39 @@
   #toast { position:fixed; left:50%; top:14px; transform:translateX(-50%); background:#33363c;
            border:1px solid var(--line); border-radius:8px; padding:9px 16px; display:none; max-width:70vw; }
   #toast.err { border-color:#c0453f; background:#3a2626; }
+  #gate { position:fixed; inset:0; background:var(--bg); display:none; align-items:center;
+          justify-content:center; z-index:20; }
+  #gate.on { display:flex; }
+  #gate .card { background:var(--panel); border:1px solid var(--line); border-radius:12px;
+                padding:28px; width:min(420px, 90vw); }
+  #gate h1 { margin:0 0 6px; font-size:20px; }
+  #gate p { margin:0 0 18px; color:var(--muted); font-size:13px; line-height:1.6; }
+  #gate input[type=text] { width:100%; font:inherit; padding:9px 11px; border-radius:7px;
+                           border:1px solid var(--line); background:#1f2126; color:var(--fg); }
+  #gate button { margin-top:12px; width:100%; }
+  #whoami { display:none; align-items:center; gap:8px; margin-bottom:4px; }
+  #whoami.on { display:flex; }
+  #whoami .who { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
+  #whoami button { font-size:11px; padding:4px 8px; }
 </style>
 </head>
 <body>
+<div id="gate">
+  <div class="card">
+    <h1>scan-sign</h1>
+    <p>Your name starts a private session. Files stay in memory for that session only —
+       they are never written to the server's disk, and coming back later always starts a
+       fresh session rather than reopening this one.</p>
+    <input type="text" id="gatename" placeholder="Your name" maxlength="40" autocomplete="name">
+    <button class="primary" id="gatego">Start session</button>
+  </div>
+</div>
+
 <div id="side">
+  <div id="whoami">
+    <span class="who" id="whoname"></span>
+    <button id="newsession" title="Ends this session and clears its files">New</button>
+  </div>
   <h2>Document</h2>
   <div class="slot" id="pdfslot">
     <div class="top">
@@ -101,7 +130,7 @@
   <button class="wide" id="quit">Quit</button>
 
   <div class="hint" id="hosted-note" hidden style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px">
-    Your files stay in this browser session only, in memory, and are dropped when it goes idle.
+    Files live in this session only, in memory, and are dropped when it ends or goes idle.
     Nothing is written to disk on the server. For anything sensitive, run scan-sign locally —
     <code>pipx install git+https://github.com/bajicdusko/scan-sign</code>
   </div>
@@ -137,17 +166,54 @@ async function api(url, opts) {
   const res = await fetch(url, opts);
   const ct = res.headers.get('Content-Type') || '';
   if (!res.ok) {
-    const msg = ct.includes('json') ? (await res.json()).error : await res.text();
-    throw new Error(msg || res.status);
+    const payload = ct.includes('json') ? await res.json() : {error: await res.text()};
+    if (res.status === 409 && payload.needs_name) {
+      const e = new Error('session ended'); e.needsName = true; throw e;
+    }
+    throw new Error(payload.error || res.status);
   }
   return ct.includes('json') ? res.json() : res.blob();
+}
+
+function showGate(message) {
+  DOC = null; placements = []; selected = null; current = null;
+  $('#gate').classList.add('on');
+  $('#gatename').focus();
+  if (message) toast(message, true);
+}
+
+async function startSession() {
+  const name = $('#gatename').value.trim();
+  if (!name) { $('#gatename').focus(); return toast('type a name to start', true); }
+  $('#gatego').disabled = true;
+  try {
+    const m = await api('/api/start', {method: 'POST', headers: {'Content-Type': 'application/json'},
+                                       body: JSON.stringify({name})});
+    $('#gate').classList.remove('on');
+    applyManifest(m);
+    toast('session started for ' + m.name);
+  } catch (e) { toast('could not start — ' + e.message, true); }
+  finally { $('#gatego').disabled = false; }
 }
 
 function slotOf(name) { return DOC.slots.find(s => s.name === name); }
 function loadedSlots() { return DOC.slots.filter(s => s.loaded); }
 
 async function boot() {
-  applyManifest(await api('/api/doc'));
+  let m;
+  try {
+    m = await api('/api/doc');
+  } catch (e) {
+    if (e.needsName) return showGate();   // hosted, and this browser has no live session
+    throw e;
+  }
+  if (m.mode === 'hosted') {
+    // Loading the page is "starting again": drop whatever this browser still held and
+    // make them name a fresh session, so nothing carries over between visits.
+    await fetch('/api/end', {method: 'POST'}).catch(() => {});
+    return showGate();
+  }
+  applyManifest(m);
   $('#quit').style.display = DOC.mode === 'serve' ? '' : 'none';
   $('#save').style.display = DOC.mode === 'cli' ? '' : 'none';
   $('#save').title = DOC.output ? 'writes ' + DOC.output : '';
@@ -168,6 +234,11 @@ function applyManifest(m, keepPlacements) {
     current = first ? first.name : null;
   }
   renderSlots();
+  if (m.mode === 'hosted') {
+    $('#whoami').classList.add('on');
+    $('#whoname').textContent = m.name;   // textContent, never innerHTML — it is visitor input
+    $('#hosted-note').hidden = false;
+  }
   $('#pdfname').textContent = m.pdf ? m.pdf.name : 'none loaded';
   $('#pdfslot').classList.toggle('on', !!m.pdf);
   if (m.pdf) {
@@ -234,13 +305,15 @@ async function upload(kind, file) {
     if (kind !== 'pdf') current = kind;
     applyManifest(m, kind !== 'pdf');
     toast(`${kind}: ${file.name}`);
-  } catch (e) { toast('could not load ' + file.name + ' — ' + e.message, true); }
+  } catch (e) { if (e.needsName) return showGate('session ended — start a new one');
+                 toast('could not load ' + file.name + ' — ' + e.message, true); }
 }
 
 async function setBg(name, payload) {
   try { applyManifest(await api('/api/bg/' + name, {
     method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)}), true); }
-  catch (e) { toast(e.message, true); }
+  catch (e) { if (e.needsName) return showGate('session ended — start a new one');
+              toast(e.message, true); }
 }
 
 function showPage(i) {
@@ -375,12 +448,23 @@ $('#download').onclick = async () => {
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 30000);
     toast('downloaded ' + a.download);
-  } catch (e) { toast('render failed — ' + e.message, true); }
+  } catch (e) { if (e.needsName) showGate('session ended — start a new one');
+                 else toast('render failed — ' + e.message, true); }
   finally { busy = false; $('#download').textContent = 'Download signed PDF'; updateButtons(); }
 };
 
 $('#save').onclick = () => finish('/api/save', placements, 'Saved — back to the terminal.');
 $('#quit').onclick = () => finish('/api/quit', null, 'Stopped. You can close this tab.');
+$('#gatego').onclick = startSession;
+$('#gatename').addEventListener('keydown', e => { if (e.key === 'Enter') startSession(); });
+$('#newsession').onclick = async () => {
+  if (placements.length && !confirm('End this session? Its files are dropped.')) return;
+  try { await fetch('/api/end', {method: 'POST'}); } catch (e) { /* ending is best-effort */ }
+  $('#whoami').classList.remove('on');
+  $('#gatename').value = '';
+  el.page.hidden = true; $('#empty').hidden = false;
+  showGate();
+};
 
 async function finish(url, body, msg) {
   await fetch(url, {method: 'POST', headers: {'Content-Type': 'application/json'},

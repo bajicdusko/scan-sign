@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import base64
-import hmac
 import io
 import json
 import os
+import re
 import threading
 import time
 import webbrowser
@@ -38,9 +37,10 @@ MAX_SCAN_DPI = 200
 class Session:
     """Everything the browser can look at or replace, guarded by one lock."""
 
-    def __init__(self, mode: str, output: Path | None = None):
+    def __init__(self, mode: str, output: Path | None = None, name: str = ""):
         self.mode = mode
         self.output = output
+        self.name = name
         self.lock = threading.RLock()
         self.doc: fitz.Document | None = None
         self.pdf_name: str | None = None
@@ -123,6 +123,7 @@ class Session:
         with self.lock:
             return {
                 "mode": self.mode,
+                "name": self.name,
                 "token": self.token,
                 "output": str(self.output) if self.output else None,
                 "pdf": (
@@ -195,6 +196,12 @@ class Session:
             return data, f"{stem}-signed.pdf"
 
 
+def clean_name(raw: str) -> str:
+    """A display label, nothing more — it is echoed back into the page."""
+    name = re.sub(r"[\x00-\x1f\x7f]", "", str(raw or "")).strip()
+    return name[:40]
+
+
 def _parse_placements(items) -> list[Placement]:
     return [
         Placement(
@@ -209,7 +216,7 @@ def _parse_placements(items) -> list[Placement]:
     ]
 
 
-def _handler(store, password: str | None = None):
+def _handler(store):
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
         session = None
@@ -243,30 +250,16 @@ def _handler(store, password: str | None = None):
                 raise ValueError(f"upload too large (limit {MAX_UPLOAD_BYTES // (1024 * 1024)} MB)")
             return self.rfile.read(length) if length else b""
 
-        def _authorized(self) -> bool:
-            if not password:
-                return True
-            header = self.headers.get("Authorization", "")
-            if header.startswith("Basic "):
-                try:
-                    supplied = base64.b64decode(header[6:]).decode().split(":", 1)[-1]
-                    if hmac.compare_digest(supplied, password):
-                        return True
-                except Exception:
-                    pass
-            self.send_response(401)
-            self.send_header("WWW-Authenticate", 'Basic realm="scan-sign"')
-            self.send_header("Content-Length", "0")
-            self.end_headers()
-            return False
+        def _cookie(self) -> str | None:
+            jar = SimpleCookie(self.headers.get("Cookie", ""))
+            return jar[COOKIE].value if COOKIE in jar else None
 
         def _begin(self) -> bool:
-            if not self._authorized():
-                return False
-            cookie = SimpleCookie(self.headers.get("Cookie", ""))
-            current = cookie[COOKIE].value if COOKIE in cookie else None
-            self.session, self._new_cookie = store.resolve(current)
+            self.session, self._new_cookie = store.resolve(self._cookie())
             return True
+
+        def _no_session(self) -> None:
+            self._json({"mode": "hosted", "needs_name": True}, 409)
 
         def do_GET(self):
             if not self._begin():
@@ -274,8 +267,11 @@ def _handler(store, password: str | None = None):
             s, path = self.session, self.path.split("?")[0]
             try:
                 if path in ("/", "/index.html"):
-                    self._send((HERE / "index.html").read_bytes(), "text/html; charset=utf-8")
-                elif path == "/api/doc":
+                    return self._send((HERE / "index.html").read_bytes(), "text/html; charset=utf-8")
+                if s is None:
+                    return self._no_session()
+
+                if path == "/api/doc":
                     self._json(s.manifest())
                 elif path.startswith("/page/"):
                     self._send(s.page_png(int(path[len("/page/") : -len(".png")])), "image/png")
@@ -291,6 +287,22 @@ def _handler(store, password: str | None = None):
                 return
             s, path = self.session, self.path.split("?")[0]
             try:
+                # Starting is the one thing you can do without a session, and it always makes a
+                # new one — a returning visitor never lands back inside the previous session.
+                if path == "/api/start":
+                    name = clean_name(json.loads(self._body() or b"{}").get("name"))
+                    if not name:
+                        return self._json({"error": "a name is required to start"}, 400)
+                    self.session, self._new_cookie = store.start(self._cookie(), name)
+                    return self._json(self.session.manifest())
+
+                if path == "/api/end":
+                    store.end(self._cookie())
+                    return self._json({"ok": True})
+
+                if s is None:
+                    return self._no_session()
+
                 if path.startswith("/api/upload/"):
                     kind = path[len("/api/upload/") :]
                     filename = unquote(self.headers.get("X-Filename", kind))
@@ -355,10 +367,10 @@ def serve(session: Session, open_browser: bool = True, port: int = 0):
     return session.result
 
 
-def serve_hosted(host: str = "0.0.0.0", port: int = 8080, password: str | None = None) -> None:
-    """Public deployment: one session per browser, no way to stop the process from the page."""
+def serve_hosted(host: str = "0.0.0.0", port: int = 8080) -> None:
+    """Public deployment: visitors name a session, and sessions are never resumed."""
     store = CookieSessions(factory=lambda: Session(mode="hosted"))
-    server = ThreadingHTTPServer((host, port), _handler(store, password=password))
+    server = ThreadingHTTPServer((host, port), _handler(store))
     server.daemon_threads = True
 
     def janitor():
@@ -370,8 +382,7 @@ def serve_hosted(host: str = "0.0.0.0", port: int = 8080, password: str | None =
     print(
         f"scan-sign listening on {host}:{port} "
         f"(sessions={store.max_sessions}, idle timeout={store.ttl}s, "
-        f"upload limit={MAX_UPLOAD_BYTES // (1024 * 1024)}MB, "
-        f"password={'on' if password else 'off'})",
+        f"upload limit={MAX_UPLOAD_BYTES // (1024 * 1024)}MB)",
         flush=True,
     )
     server.serve_forever()

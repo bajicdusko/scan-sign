@@ -1,7 +1,8 @@
 """Session lookup for the HTTP layer.
 
-Locally there is exactly one session — the files the CLI already loaded. Hosted, every browser
-gets its own, keyed by a cookie, so two people are never looking at the same document.
+Locally there is exactly one session — the files the CLI already loaded. Hosted, a visitor names
+themselves to start one, and it is never resumed: coming back means starting fresh, so nobody
+inherits the documents of whoever used the browser before them.
 """
 
 from __future__ import annotations
@@ -22,12 +23,18 @@ class SingleSession:
     def resolve(self, cookie_value: str | None):
         return self.session, None
 
+    def start(self, cookie_value: str | None, name: str):
+        return self.session, None
+
+    def end(self, cookie_value: str | None) -> None:
+        pass
+
     def sweep(self) -> None:
         pass
 
 
 class CookieSessions:
-    """One session per browser, evicted when idle or when the cap is reached."""
+    """One session per visitor, created on demand and evicted when idle or at the cap."""
 
     hosted = True
 
@@ -40,18 +47,31 @@ class CookieSessions:
         self.seen: dict[str, float] = {}
 
     def resolve(self, cookie_value: str | None):
-        """Return (session, new_cookie_or_None)."""
+        """Return (session, new_cookie). Never creates — an unknown cookie has no session."""
+        with self.lock:
+            session = self.sessions.get(cookie_value) if cookie_value else None
+            if session is not None:
+                self.seen[cookie_value] = time.monotonic()
+            return session, None
+
+    def start(self, cookie_value: str | None, name: str):
+        """Always a brand new session; whatever this browser had before is dropped."""
         now = time.monotonic()
         with self.lock:
-            if cookie_value and cookie_value in self.sessions:
-                self.seen[cookie_value] = now
-                return self.sessions[cookie_value], None
-
+            if cookie_value:
+                self._drop(cookie_value)
             self._evict(now)
             token = secrets.token_urlsafe(18)
-            self.sessions[token] = self.factory()
+            session = self.factory()
+            session.name = name
+            self.sessions[token] = session
             self.seen[token] = now
-            return self.sessions[token], token
+            return session, token
+
+    def end(self, cookie_value: str | None) -> None:
+        with self.lock:
+            if cookie_value:
+                self._drop(cookie_value)
 
     def sweep(self) -> None:
         with self.lock:
@@ -62,8 +82,7 @@ class CookieSessions:
             if now - seen > self.ttl:
                 self._drop(token)
         while len(self.sessions) >= self.max_sessions:
-            oldest = min(self.seen, key=self.seen.get)
-            self._drop(oldest)
+            self._drop(min(self.seen, key=self.seen.get))
 
     def _drop(self, token: str) -> None:
         session = self.sessions.pop(token, None)
