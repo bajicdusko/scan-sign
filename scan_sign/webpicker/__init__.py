@@ -12,7 +12,7 @@ import webbrowser
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote
+from urllib.parse import unquote, urlsplit
 
 import fitz
 from PIL import Image
@@ -36,6 +36,24 @@ MAX_SCAN_DPI = 200
 # The one ask in the whole tool: a coffee, offered next to the finished download.
 # Set SCAN_SIGN_SUPPORT_URL="" to drop the prompt entirely.
 SUPPORT_URL = os.environ.get("SCAN_SIGN_SUPPORT_URL", "https://buymeacoffee.com/bajicdusko").strip()
+
+BMC_HOSTS = ("buymeacoffee.com", "buymeacoff.ee")
+
+
+def bmc_slug(url: str) -> str | None:
+    """The account name in a Buy Me a Coffee link, or None if the link isn't one of theirs.
+
+    Their button widget can only point at a slug on their own domain, so anyone who
+    redirects SCAN_SIGN_SUPPORT_URL somewhere else gets the plain link instead — the
+    tip must never land in an account the operator didn't choose.
+    """
+    parts = urlsplit(url)
+    if parts.scheme not in ("http", "https"):
+        return None
+    if parts.netloc.lower().removeprefix("www.") not in BMC_HOSTS:
+        return None
+    slug = parts.path.strip("/").split("/")[0]
+    return slug if re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", slug) else None
 
 
 class Session:
@@ -257,6 +275,17 @@ def _handler(store):
 
         def _landing(self) -> bytes:
             html = (HERE / "landing.html").read_bytes()
+            # No ask means no ask: the block goes, and with it the call to their CDN.
+            if not SUPPORT_URL:
+                html = re.sub(rb"<!--support-->.*?<!--/support-->", b"", html, flags=re.S)
+                return html.replace(b"__BMC_STATE__", b"")
+            slug = bmc_slug(SUPPORT_URL)
+            if slug:
+                html = html.replace(b"__BMC_SLUG__", slug.encode())
+                html = html.replace(b"__BMC_STATE__", b"has-widget")
+            else:
+                html = re.sub(rb"<!--bmc-->.*?<!--/bmc-->", b"", html, flags=re.S)
+                html = html.replace(b"__BMC_STATE__", b"")
             return html.replace(b"__SUPPORT_URL__", SUPPORT_URL.encode())
 
         def _cookie(self) -> str | None:

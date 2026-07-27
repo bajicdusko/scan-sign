@@ -23,11 +23,13 @@
 
   --font-heading: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --footer-h: 46px;
 }
 *, *::before, *::after { box-sizing: border-box; }
 [hidden] { display: none !important; }
-body { margin:0; background:var(--color-bg); color:var(--color-text);
-       font:400 15px/1.55 var(--font-body); }
+body { margin:0; padding-bottom:var(--footer-h); background:var(--color-bg);
+       color:var(--color-text); font:400 15px/1.55 var(--font-body); }
 a { color:var(--color-accent); text-decoration:none; }
 a:hover { color:var(--color-accent-300); }
 svg { display:block; }
@@ -36,7 +38,7 @@ svg { display:block; }
 :focus-visible { outline:2px solid var(--color-accent); outline-offset:3px; }
 
 /* ── hero ────────────────────────────────────────────────────────────────── */
-.hero { min-height:100vh; display:flex; flex-direction:column;
+.hero { min-height:calc(100vh - var(--footer-h)); display:flex; flex-direction:column;
         background:radial-gradient(1200px 720px at 82% -160px,
                      color-mix(in srgb, var(--color-accent-900) 75%, transparent), transparent 60%),
                    radial-gradient(1100px 800px at -10% 120%,
@@ -102,30 +104,51 @@ svg { display:block; }
 .no-catch + div { margin-top:6px; font-size:13px; line-height:1.5;
                   color:color-mix(in srgb, var(--color-text) 62%, transparent); }
 
-/* ── what it does ────────────────────────────────────────────────────────── */
+/* ── private & free ──────────────────────────────────────────────────────── */
 .does { max-width:1160px; margin:0 auto; padding:clamp(48px,7vw,96px) clamp(24px,6vw,72px); }
-.does .kicker { color:var(--color-accent); margin-bottom:clamp(24px,3vw,36px); }
-.cards { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));
-         gap:clamp(28px,3vw,44px); }
-.cards h3, .closer h3 { font-family:var(--font-heading); font-weight:600;
-                        font-size:clamp(21px,2.6vw,26px); letter-spacing:-.01em;
-                        margin:14px 0 7px; color:var(--color-accent); }
-.cards p, .closer p { font-size:14.5px; line-height:1.55; margin:0;
-                      color:color-mix(in srgb, var(--color-text) 76%, transparent); }
-.closer { max-width:560px; margin:clamp(28px,3vw,44px) auto 0; text-align:center;
+.closer h3 { font-family:var(--font-heading); font-weight:600;
+             font-size:clamp(21px,2.6vw,26px); letter-spacing:-.01em;
+             margin:14px 0 7px; color:var(--color-accent); }
+.closer p { font-size:14.5px; line-height:1.55; margin:0;
+            color:color-mix(in srgb, var(--color-text) 76%, transparent); }
+.closer { max-width:560px; margin:0 auto; text-align:center;
           display:flex; flex-direction:column; align-items:center; scroll-margin-top:32px; }
 .closer p { max-width:46ch; }
 
-/* ── footer ──────────────────────────────────────────────────────────────── */
-footer { padding:clamp(18px,3vw,26px) clamp(24px,6vw,72px); display:flex; align-items:center;
-         gap:16px 22px; flex-wrap:wrap; font-size:13px;
+/* ── footer ──────────────────────────────────────────────────────────────────
+   One thin bar pinned to the bottom of the viewport, carrying the coffee ask.
+   It stays a rule under the page rather than something you scroll to, so the
+   body reserves its height. */
+footer { position:fixed; inset:auto 0 0 0; z-index:10; height:var(--footer-h);
+         padding:0 clamp(16px,4vw,72px); display:flex; align-items:center;
+         gap:18px; font-size:12px; line-height:1;
          color:color-mix(in srgb, var(--color-text) 55%, transparent);
+         background:color-mix(in srgb, var(--color-bg) 88%, transparent);
+         backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
          border-top:1px solid var(--color-divider); }
-footer .links { margin-left:auto; display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
-.bmc { display:inline-flex; align-items:center; gap:7px; padding:7px 13px; font-weight:700;
-       font-size:13px; background:#ffdd00; border-radius:8px; color:#141414; }
+footer .links { margin-left:auto; display:flex; align-items:center; gap:clamp(12px,2vw,20px); }
+/* The one line of reasoning that has to sit next to a money ask. */
+.support-note { color:color-mix(in srgb, var(--color-text) 42%, transparent); }
+.support-cta { display:flex; align-items:center; }
+/* Their widget arrives at a fixed 24px Comic. `zoom` rather than `transform` so the
+   button's footprint shrinks too and the bar stays this thin. */
+.support-cta .bmc-btn-container { zoom:.62; }
+
+/* Plain link, for when the widget is switched off or their CDN cannot be reached. */
+.bmc { display:inline-flex; align-items:center; gap:6px; padding:7px 12px; font-weight:700;
+       font-size:12.5px; background:#ffdd00; border-radius:8px; color:#141414; }
 .bmc:hover { background:#ffe74d; color:#141414; }
-.bmc .cup { font-size:15px; }
+.bmc .cup { font-size:14px; }
+footer.has-widget .bmc { display:none; }
+
+/* Below this the bar keeps only what it needs: the ask and the policy. */
+@media (max-width: 700px) {
+  footer .copyright, .support-note { display:none; }
+}
+/* On the narrowest phones the ask gives up a little more so the policy still fits. */
+@media (max-width: 360px) {
+  .support-cta .bmc-btn-container { zoom:.52; }
+}
 </style>
 </head>
 <body>
@@ -170,33 +193,8 @@ footer .links { margin-left:auto; display:flex; align-items:center; gap:18px; fl
   </main>
 </div>
 
-<!-- ── what it does ────────────────────────────────────────────────────────── -->
+<!-- ── privacy ─────────────────────────────────────────────────────────────── -->
 <section class="does">
-  <span class="kicker" data-i18n="doesKicker">What it does</span>
-  <div class="cards">
-
-    <div>
-      <svg width="26" height="26" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M227.31,73.37,182.63,28.69a16,16,0,0,0-22.63,0L36.69,152A15.86,15.86,0,0,0,32,163.31V208a16,16,0,0,0,16,16H92.69A15.86,15.86,0,0,0,104,219.31L227.31,96a16,16,0,0,0,0-22.63ZM92.69,208H48V163.31l88-88L180.69,120ZM192,108.69,147.31,64l24-24L216,84.69Z"></path></svg>
-      <h3 data-i18n="signTitle">Add your signature</h3>
-      <p data-i18n="signCopy">Drop in a photo of your signature and place it anywhere. The paper behind it is removed
-         automatically — only the ink lands.</p>
-    </div>
-
-    <div>
-      <svg width="26" height="26" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M232,128a104,104,0,1,1-104-104A104.11,104.11,0,0,1,232,128Zm-40.35-30.34-58.34,58.35L100.34,123a8,8,0,0,0-11.32,11.31l38.35,38.35a8,8,0,0,0,11.31,0l64-64a8,8,0,0,0-11.32-11.32Z"></path></svg>
-      <h3 data-i18n="stampTitle">Add a stamp</h3>
-      <p data-i18n="stampCopy">Got an official stamp or seal? Drop it in alongside the signature. Entirely optional.</p>
-    </div>
-
-    <div>
-      <svg width="26" height="26" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40Zm0,16V158.75l-26.07-26.06a16,16,0,0,0-22.63,0l-20,20-44-44a16,16,0,0,0-22.62,0L40,149.37V56ZM40,172l52-52,80,80H40Zm176,28H194.63l-36-36,20-20L216,181.38V200ZM144,100a12,12,0,1,1,12,12A12,12,0,0,1,144,100Z"></path></svg>
-      <h3 data-i18n="scanTitle">Make it look scanned</h3>
-      <p data-i18n="scanCopy">When an office only accepts a scan, one toggle re-renders the page like a photocopy —
-         faint skew, softening and corner shading.</p>
-    </div>
-
-  </div>
-
   <!-- The footer's "Privacy policy" points here: this is the whole policy. -->
   <div class="closer" id="privacy">
     <svg width="26" height="26" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M208,40H48A16,16,0,0,0,32,56v58.78c0,89.61,75.82,119.34,91,124.39a15.53,15.53,0,0,0,10,0c15.2-5.05,91-34.78,91-124.39V56A16,16,0,0,0,208,40Zm-34.35,69.65-56,56a8,8,0,0,1-11.31,0l-24-24a8,8,0,0,1,11.31-11.31L112,148.69l50.34-50.34a8,8,0,0,1,11.31,11.31Z"></path></svg>
@@ -206,13 +204,21 @@ footer .links { margin-left:auto; display:flex; align-items:center; gap:18px; fl
   </div>
 </section>
 
-<footer>
-  <span data-i18n="copyright">© 2026 sign·scan·send</span>
+<!-- The server drops everything between the support markers when SCAN_SIGN_SUPPORT_URL
+     is empty, so a cleared ask also means no request to Buy Me a Coffee. -->
+<footer class="__BMC_STATE__">
+  <span class="copyright" data-i18n="copyright">© 2026 sign·scan·send</span>
   <span class="links">
     <a href="#privacy" data-i18n="privacyLink">Privacy policy</a>
-    <a href="__SUPPORT_URL__" id="coffee-link" target="_blank" rel="noopener" class="bmc">
-      <span class="cup">☕</span><span data-i18n="coffee">Buy me a coffee</span>
-    </a>
+    <!--support-->
+    <span class="support-note" data-i18n="supportNote">One developer, one server bill</span>
+    <span class="support-cta">
+      <a href="__SUPPORT_URL__" target="_blank" rel="noopener" class="bmc">
+        <span class="cup">☕</span><span data-i18n="coffee">Buy developer a coffee</span>
+      </a>
+      <!--bmc--><script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="__BMC_SLUG__" data-color="#FFDD00" data-emoji=""  data-font="Comic" data-text="Buy developer a coffee" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff" ></script><!--/bmc-->
+    </span>
+    <!--/support-->
   </span>
 </footer>
 
@@ -243,15 +249,6 @@ const STRINGS = {
     cta: 'Sign a document — free',
     noCatch: 'It’s actually free — no catch.',
     noCatchSub: 'No account · no trial · no watermark · nothing stored.',
-    doesKicker: 'What it does',
-    signTitle: 'Add your signature',
-    signCopy: 'Drop in a photo of your signature and place it anywhere. The paper behind it is ' +
-              'removed automatically — only the ink lands.',
-    stampTitle: 'Add a stamp',
-    stampCopy: 'Got an official stamp or seal? Drop it in alongside the signature. Entirely optional.',
-    scanTitle: 'Make it look scanned',
-    scanCopy: 'When an office only accepts a scan, one toggle re-renders the page like a photocopy ' +
-              '— faint skew, softening and corner shading.',
     privacyTitle: 'Private & free',
     privacyCopy: 'Nothing installed, nothing stored, no account. Every file stays on your device ' +
                  'and is gone when you leave.',
@@ -259,7 +256,8 @@ const STRINGS = {
                        'memory for one session and are dropped the moment it ends or goes idle.',
     copyright: '© 2026 sign·scan·send',
     privacyLink: 'Privacy policy',
-    coffee: 'Buy me a coffee',
+    supportNote: 'One developer, one server bill',
+    coffee: 'Buy developer a coffee',
   },
 
   bs: {
@@ -277,15 +275,6 @@ const STRINGS = {
     cta: 'Potpišite dokument — besplatno',
     noCatch: 'Zaista je besplatno — nema kvake.',
     noCatchSub: 'Bez naloga · bez probnog perioda · bez vodenog žiga · ništa se ne pohranjuje.',
-    doesKicker: 'Šta radi',
-    signTitle: 'Dodajte svoj potpis',
-    signCopy: 'Ubacite fotografiju svog potpisa i postavite je gdje želite. Papir iza nje se ' +
-              'uklanja automatski — ostaje samo mastilo.',
-    stampTitle: 'Dodajte pečat',
-    stampCopy: 'Imate zvanični pečat ili žig? Ubacite ga uz potpis. Potpuno opcionalno.',
-    scanTitle: 'Neka izgleda skenirano',
-    scanCopy: 'Kada ustanova prihvata samo skeniran dokument, jedan prekidač ponovo iscrtava ' +
-              'stranicu kao fotokopiju — blagi nagib, omekšavanje i sjenčenje uglova.',
     privacyTitle: 'Privatno i besplatno',
     privacyCopy: 'Ništa se ne instalira, ništa ne pohranjuje, bez naloga. Svaki fajl ostaje na ' +
                  'vašem uređaju i nestaje kada odete.',
@@ -294,7 +283,8 @@ const STRINGS = {
                        'postane neaktivna.',
     copyright: '© 2026 sign·scan·send',
     privacyLink: 'Politika privatnosti',
-    coffee: 'Časti me kafom',
+    supportNote: 'Jedan programer, jedan račun za server',
+    coffee: 'Časti programera kafom',
   },
 
   sr: {
@@ -312,15 +302,6 @@ const STRINGS = {
     cta: 'Потпишите документ — бесплатно',
     noCatch: 'Заиста је бесплатно — нема кваке.',
     noCatchSub: 'Без налога · без пробног периода · без воденог жига · ништа се не чува.',
-    doesKicker: 'Шта ради',
-    signTitle: 'Додајте свој потпис',
-    signCopy: 'Убаците фотографију свог потписа и поставите је где желите. Папир иза ње се ' +
-              'уклања аутоматски — остаје само мастило.',
-    stampTitle: 'Додајте печат',
-    stampCopy: 'Имате званични печат или жиг? Убаците га уз потпис. Потпуно опционо.',
-    scanTitle: 'Нека изгледа скенирано',
-    scanCopy: 'Када установа прихвата само скениран документ, један прекидач поново исцртава ' +
-              'страницу као фотокопију — благи нагиб, омекшавање и сенчење углова.',
     privacyTitle: 'Приватно и бесплатно',
     privacyCopy: 'Ништа се не инсталира, ништа не чува, без налога. Сваки фајл остаје на вашем ' +
                  'уређају и нестаје када одете.',
@@ -329,7 +310,8 @@ const STRINGS = {
                        'постане неактивна.',
     copyright: '© 2026 sign·scan·send',
     privacyLink: 'Политика приватности',
-    coffee: 'Части ме кафом',
+    supportNote: 'Један програмер, један рачун за сервер',
+    coffee: 'Части програмера кафом',
   },
 };
 
@@ -367,6 +349,11 @@ function apply() {
   document.getElementById('privacy-copy').textContent =
     hosted ? dict.privacyCopyHosted : dict.privacyCopy;
 
+  // Buy Me a Coffee's button takes its label from a data- attribute the page can't vary
+  // by language, so the label is set here once their widget has written itself in.
+  const bmcLabel = document.querySelector('.bmc-btn-text');
+  if (bmcLabel) bmcLabel.textContent = dict.coffee;
+
   for (const button of document.querySelectorAll('#lang button')) {
     button.setAttribute('aria-pressed', String(button.dataset.lang === lang));
   }
@@ -393,11 +380,12 @@ apply();
 
 document.getElementById('host').textContent = location.hostname || '';
 
-// The server rewrites __SUPPORT_URL__ when it serves this page; an empty one means
-// SCAN_SIGN_SUPPORT_URL was cleared, so the ask disappears with it.
-const coffee = document.getElementById('coffee-link');
-const href = coffee.getAttribute('href');
-if (!href || href.startsWith('__SUPPORT')) coffee.hidden = true;
+// Buy Me a Coffee's own button writes itself in while the page parses. If their CDN is
+// blocked or slow it never appears, so fall back to the plain link once loading is done.
+addEventListener('load', () => {
+  const bar = document.querySelector('footer');
+  if (!bar.querySelector('.bmc-btn')) bar.classList.remove('has-widget');
+});
 
 // Hosted, the files do reach the server's memory for the length of a session — say so here
 // rather than letting the local-only claim stand for everyone.
