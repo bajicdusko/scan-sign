@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>sign · scan · send — sign a PDF without printing it</title>
-<meta name="description" content="Drop a photo of your signature onto a PDF, optionally make it look scanned, and download it. Free, no account, nothing stored.">
+<meta name="description" id="meta-description" content="Drop a photo of your signature onto a PDF, optionally make it look scanned, and download it. Free, no account, nothing stored.">
 <style>
 /* ── Nocturne tokens ───────────────────────────────────────────────────────
    Inlined rather than @import-ed, for the same reason as the app: a page that
@@ -47,6 +47,18 @@ svg { display:block; }
 .brand i { font-style:normal; color:var(--color-accent); }
 .host { font-size:12px; color:color-mix(in srgb, var(--color-text) 45%, transparent); }
 
+/* Language picker — a segmented control, small enough to stay out of the way. */
+.lang { margin-left:auto; display:flex; gap:2px; padding:3px; border-radius:11px;
+        border:1px solid var(--color-divider);
+        background:color-mix(in srgb, black 22%, transparent); }
+.lang button { appearance:none; border:0; cursor:pointer; background:none;
+               font-family:var(--font-heading); font-weight:600; font-size:12px; line-height:1;
+               letter-spacing:.05em; padding:7px 10px; border-radius:8px;
+               color:color-mix(in srgb, var(--color-text) 58%, transparent);
+               transition:background .12s ease, color .12s ease; }
+.lang button:hover { color:var(--color-text); }
+.lang button[aria-pressed="true"] { background:var(--color-accent-700); color:var(--color-accent-200); }
+
 .hero-grid { flex:1; display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));
              gap:clamp(36px,5vw,80px); align-items:center;
              padding:clamp(24px,4vw,56px) clamp(24px,6vw,72px);
@@ -81,6 +93,7 @@ svg { display:block; }
        padding:clamp(18px,2.2vw,24px) 24px; border-radius:14px; text-align:center;
        box-shadow:0 10px 28px color-mix(in srgb, var(--color-accent) 40%, transparent);
        transition:transform .12s ease, box-shadow .12s ease; }
+.cta svg { flex:none; }
 .cta:hover { color:#15131f; transform:translateY(-2px);
              box-shadow:0 16px 40px color-mix(in srgb, var(--color-accent) 55%, transparent); }
 .cta:active { transform:translateY(0); }
@@ -122,61 +135,63 @@ footer .links { margin-left:auto; display:flex; align-items:center; gap:18px; fl
   <header class="topbar">
     <span class="brand">sign<i>·</i>scan<i>·</i>send</span>
     <span class="host" id="host"></span>
+    <!-- Populated by the i18n block below, so the list of languages lives in one place. -->
+    <nav class="lang" id="lang" aria-label="Language"></nav>
   </header>
 
   <main class="hero-grid">
     <div>
-      <span class="kicker">Signing a document today</span>
+      <span class="kicker" data-i18n="ritualKicker">Signing digital documents today</span>
       <ol class="ritual">
-        <li>1. Print it.</li>
-        <li>2. Sign it.</li>
-        <li>3. Scan it.</li>
-        <li>4. Email it back.</li>
+        <li data-i18n="ritual1">1. Print it.</li>
+        <li data-i18n="ritual2">2. Sign it.</li>
+        <li data-i18n="ritual3">3. Scan it.</li>
+        <li data-i18n="ritual4">4. Send it back.</li>
       </ol>
       <div class="sigh">
         <span class="emoji">😤</span>
-        <span>Every. Single. Time.</span>
+        <span data-i18n="sigh">Every. Single. Time.</span>
       </div>
     </div>
 
     <div class="pitch">
-      <h1>Not anymore.</h1>
+      <h1 data-i18n="pitchTitle">Not anymore.</h1>
       <p class="rebellion">
         <svg width="15" height="15" viewBox="0 0 256 256" fill="currentColor"><path d="M224,72a8,8,0,0,1-8,8H180.28l-24,144H176a8,8,0,0,1,0,16H40a8,8,0,0,1,0-16H99.72l24-144H72V208a8,8,0,0,1-16,0V48a8,8,0,0,1,8-8H216A8,8,0,0,1,224,72Z"></path></svg>
-        This is a small rebellion against bureaucracy.
+        <span data-i18n="rebellion">This is a small rebellion against bureaucracy.</span>
       </p>
       <a href="/app" class="cta">
-        Sign a document — free
+        <span data-i18n="cta">Sign a document — free</span>
         <svg width="20" height="20" viewBox="0 0 256 256" fill="currentColor"><path d="M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z"></path></svg>
       </a>
-      <div class="no-catch">It’s actually free — no catch.</div>
-      <div>No account · no trial · no watermark · nothing stored.</div>
+      <div class="no-catch" data-i18n="noCatch">It’s actually free — no catch.</div>
+      <div data-i18n="noCatchSub">No account · no trial · no watermark · nothing stored.</div>
     </div>
   </main>
 </div>
 
 <!-- ── what it does ────────────────────────────────────────────────────────── -->
 <section class="does">
-  <span class="kicker">What it does</span>
+  <span class="kicker" data-i18n="doesKicker">What it does</span>
   <div class="cards">
 
     <div>
       <svg width="26" height="26" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M227.31,73.37,182.63,28.69a16,16,0,0,0-22.63,0L36.69,152A15.86,15.86,0,0,0,32,163.31V208a16,16,0,0,0,16,16H92.69A15.86,15.86,0,0,0,104,219.31L227.31,96a16,16,0,0,0,0-22.63ZM92.69,208H48V163.31l88-88L180.69,120ZM192,108.69,147.31,64l24-24L216,84.69Z"></path></svg>
-      <h3>Add your signature</h3>
-      <p>Drop in a photo of your signature and place it anywhere. The paper behind it is removed
+      <h3 data-i18n="signTitle">Add your signature</h3>
+      <p data-i18n="signCopy">Drop in a photo of your signature and place it anywhere. The paper behind it is removed
          automatically — only the ink lands.</p>
     </div>
 
     <div>
       <svg width="26" height="26" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M232,128a104,104,0,1,1-104-104A104.11,104.11,0,0,1,232,128Zm-40.35-30.34-58.34,58.35L100.34,123a8,8,0,0,0-11.32,11.31l38.35,38.35a8,8,0,0,0,11.31,0l64-64a8,8,0,0,0-11.32-11.32Z"></path></svg>
-      <h3>Add a stamp</h3>
-      <p>Got an official stamp or seal? Drop it in alongside the signature. Entirely optional.</p>
+      <h3 data-i18n="stampTitle">Add a stamp</h3>
+      <p data-i18n="stampCopy">Got an official stamp or seal? Drop it in alongside the signature. Entirely optional.</p>
     </div>
 
     <div>
       <svg width="26" height="26" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40Zm0,16V158.75l-26.07-26.06a16,16,0,0,0-22.63,0l-20,20-44-44a16,16,0,0,0-22.62,0L40,149.37V56ZM40,172l52-52,80,80H40Zm176,28H194.63l-36-36,20-20L216,181.38V200ZM144,100a12,12,0,1,1,12,12A12,12,0,0,1,144,100Z"></path></svg>
-      <h3>Make it look scanned</h3>
-      <p>When an office only accepts a scan, one toggle re-renders the page like a photocopy —
+      <h3 data-i18n="scanTitle">Make it look scanned</h3>
+      <p data-i18n="scanCopy">When an office only accepts a scan, one toggle re-renders the page like a photocopy —
          faint skew, softening and corner shading.</p>
     </div>
 
@@ -185,23 +200,197 @@ footer .links { margin-left:auto; display:flex; align-items:center; gap:18px; fl
   <!-- The footer's "Privacy policy" points here: this is the whole policy. -->
   <div class="closer" id="privacy">
     <svg width="26" height="26" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M208,40H48A16,16,0,0,0,32,56v58.78c0,89.61,75.82,119.34,91,124.39a15.53,15.53,0,0,0,10,0c15.2-5.05,91-34.78,91-124.39V56A16,16,0,0,0,208,40Zm-34.35,69.65-56,56a8,8,0,0,1-11.31,0l-24-24a8,8,0,0,1,11.31-11.31L112,148.69l50.34-50.34a8,8,0,0,1,11.31,11.31Z"></path></svg>
-    <h3>Private &amp; free</h3>
-    <p id="privacy-copy">Nothing installed, nothing stored, no account. Every file stays on your
+    <h3 data-i18n="privacyTitle">Private &amp; free</h3>
+    <p id="privacy-copy" data-i18n="privacyCopy">Nothing installed, nothing stored, no account. Every file stays on your
        device and is gone when you leave.</p>
   </div>
 </section>
 
 <footer>
-  <span>© 2026 sign·scan·send</span>
+  <span data-i18n="copyright">© 2026 sign·scan·send</span>
   <span class="links">
-    <a href="#privacy">Privacy policy</a>
+    <a href="#privacy" data-i18n="privacyLink">Privacy policy</a>
     <a href="__SUPPORT_URL__" id="coffee-link" target="_blank" rel="noopener" class="bmc">
-      <span class="cup">☕</span>Buy me a coffee
+      <span class="cup">☕</span><span data-i18n="coffee">Buy me a coffee</span>
     </a>
   </span>
 </footer>
 
 <script>
+/* ── i18n ──────────────────────────────────────────────────────────────────
+   Every translatable string lives here, keyed by the data-i18n attribute on
+   the element that shows it. Adding a language means adding one entry to
+   LANGS and one dictionary below — nothing else on the page changes. */
+const LANGS = [
+  { code: 'en', label: 'EN', name: 'English',  htmlLang: 'en',      match: /^en/i },
+  { code: 'bs', label: 'BS', name: 'Bosanski', htmlLang: 'bs',      match: /^(bs|hr)/i },
+  { code: 'sr', label: 'СР', name: 'Српски',   htmlLang: 'sr-Cyrl', match: /^(sr|me)/i },
+];
+
+const STRINGS = {
+  en: {
+    title: 'sign · scan · send — sign a PDF without printing it',
+    description: 'Drop a photo of your signature onto a PDF, optionally make it look scanned, ' +
+                 'and download it. Free, no account, nothing stored.',
+    ritualKicker: 'Signing digital documents today',
+    ritual1: '1. Print it.',
+    ritual2: '2. Sign it.',
+    ritual3: '3. Scan it.',
+    ritual4: '4. Send it back.',
+    sigh: 'Every. Single. Time.',
+    pitchTitle: 'Not anymore.',
+    rebellion: 'This is a small rebellion against bureaucracy.',
+    cta: 'Sign a document — free',
+    noCatch: 'It’s actually free — no catch.',
+    noCatchSub: 'No account · no trial · no watermark · nothing stored.',
+    doesKicker: 'What it does',
+    signTitle: 'Add your signature',
+    signCopy: 'Drop in a photo of your signature and place it anywhere. The paper behind it is ' +
+              'removed automatically — only the ink lands.',
+    stampTitle: 'Add a stamp',
+    stampCopy: 'Got an official stamp or seal? Drop it in alongside the signature. Entirely optional.',
+    scanTitle: 'Make it look scanned',
+    scanCopy: 'When an office only accepts a scan, one toggle re-renders the page like a photocopy ' +
+              '— faint skew, softening and corner shading.',
+    privacyTitle: 'Private & free',
+    privacyCopy: 'Nothing installed, nothing stored, no account. Every file stays on your device ' +
+                 'and is gone when you leave.',
+    privacyCopyHosted: 'Nothing installed, no account, nothing written to disk. Your files live in ' +
+                       'memory for one session and are dropped the moment it ends or goes idle.',
+    copyright: '© 2026 sign·scan·send',
+    privacyLink: 'Privacy policy',
+    coffee: 'Buy me a coffee',
+  },
+
+  bs: {
+    title: 'sign · scan · send — potpišite PDF bez štampanja',
+    description: 'Ubacite fotografiju svog potpisa u PDF, po želji ga učinite da izgleda skenirano, ' +
+                 'i preuzmite ga. Besplatno, bez naloga, ništa se ne pohranjuje.',
+    ritualKicker: 'Potpisivanje digitalnih dokumenata danas',
+    ritual1: '1. Odštampaj.',
+    ritual2: '2. Potpiši.',
+    ritual3: '3. Skeniraj.',
+    ritual4: '4. Pošalji nazad.',
+    sigh: 'Svaki. Put.',
+    pitchTitle: 'Više ne.',
+    rebellion: 'Ovo je mala pobuna protiv birokratije.',
+    cta: 'Potpišite dokument — besplatno',
+    noCatch: 'Zaista je besplatno — nema kvake.',
+    noCatchSub: 'Bez naloga · bez probnog perioda · bez vodenog žiga · ništa se ne pohranjuje.',
+    doesKicker: 'Šta radi',
+    signTitle: 'Dodajte svoj potpis',
+    signCopy: 'Ubacite fotografiju svog potpisa i postavite je gdje želite. Papir iza nje se ' +
+              'uklanja automatski — ostaje samo mastilo.',
+    stampTitle: 'Dodajte pečat',
+    stampCopy: 'Imate zvanični pečat ili žig? Ubacite ga uz potpis. Potpuno opcionalno.',
+    scanTitle: 'Neka izgleda skenirano',
+    scanCopy: 'Kada ustanova prihvata samo skeniran dokument, jedan prekidač ponovo iscrtava ' +
+              'stranicu kao fotokopiju — blagi nagib, omekšavanje i sjenčenje uglova.',
+    privacyTitle: 'Privatno i besplatno',
+    privacyCopy: 'Ništa se ne instalira, ništa ne pohranjuje, bez naloga. Svaki fajl ostaje na ' +
+                 'vašem uređaju i nestaje kada odete.',
+    privacyCopyHosted: 'Ništa se ne instalira, bez naloga, ništa se ne upisuje na disk. Vaši ' +
+                       'fajlovi žive u memoriji jednu sesiju i brišu se čim se ona završi ili ' +
+                       'postane neaktivna.',
+    copyright: '© 2026 sign·scan·send',
+    privacyLink: 'Politika privatnosti',
+    coffee: 'Časti me kafom',
+  },
+
+  sr: {
+    title: 'sign · scan · send — потпишите PDF без штампања',
+    description: 'Убаците фотографију свог потписа у PDF, по жељи учините да изгледа скенирано, ' +
+                 'и преузмите га. Бесплатно, без налога, ништа се не чува.',
+    ritualKicker: 'Потписивање дигиталних докумената данас',
+    ritual1: '1. Одштампај.',
+    ritual2: '2. Потпиши.',
+    ritual3: '3. Скенирај.',
+    ritual4: '4. Пошаљи назад.',
+    sigh: 'Сваки. Пут.',
+    pitchTitle: 'Више не.',
+    rebellion: 'Ово је мала побуна против бирократије.',
+    cta: 'Потпишите документ — бесплатно',
+    noCatch: 'Заиста је бесплатно — нема кваке.',
+    noCatchSub: 'Без налога · без пробног периода · без воденог жига · ништа се не чува.',
+    doesKicker: 'Шта ради',
+    signTitle: 'Додајте свој потпис',
+    signCopy: 'Убаците фотографију свог потписа и поставите је где желите. Папир иза ње се ' +
+              'уклања аутоматски — остаје само мастило.',
+    stampTitle: 'Додајте печат',
+    stampCopy: 'Имате званични печат или жиг? Убаците га уз потпис. Потпуно опционо.',
+    scanTitle: 'Нека изгледа скенирано',
+    scanCopy: 'Када установа прихвата само скениран документ, један прекидач поново исцртава ' +
+              'страницу као фотокопију — благи нагиб, омекшавање и сенчење углова.',
+    privacyTitle: 'Приватно и бесплатно',
+    privacyCopy: 'Ништа се не инсталира, ништа не чува, без налога. Сваки фајл остаје на вашем ' +
+                 'уређају и нестаје када одете.',
+    privacyCopyHosted: 'Ништа се не инсталира, без налога, ништа се не уписује на диск. Ваши ' +
+                       'фајлови живе у меморији једну сесију и бришу се чим се она заврши или ' +
+                       'постане неактивна.',
+    copyright: '© 2026 sign·scan·send',
+    privacyLink: 'Политика приватности',
+    coffee: 'Части ме кафом',
+  },
+};
+
+const STORAGE_KEY = 'scan-sign.lang';
+
+// Stored choice wins; otherwise the browser's preference order decides, and English is the floor.
+function initialLang() {
+  let stored = null;
+  try { stored = localStorage.getItem(STORAGE_KEY); } catch { /* private mode */ }
+  if (stored && STRINGS[stored]) return stored;
+  for (const tag of (navigator.languages || [navigator.language || ''])) {
+    const hit = LANGS.find(l => l.match.test(tag));
+    if (hit) return hit.code;
+  }
+  return 'en';
+}
+
+// Whether the privacy copy may promise "never leaves your device" depends on the mode, and
+// /api/mode answers late — so remember it and re-apply whenever the language changes.
+let hosted = false;
+let lang = initialLang();
+
+function apply() {
+  const dict = STRINGS[lang] || STRINGS.en;
+  const meta = LANGS.find(l => l.code === lang) || LANGS[0];
+
+  document.documentElement.lang = meta.htmlLang;
+  document.title = dict.title;
+  document.getElementById('meta-description').content = dict.description;
+
+  for (const el of document.querySelectorAll('[data-i18n]')) {
+    const value = dict[el.dataset.i18n];
+    if (value !== undefined) el.textContent = value;
+  }
+  document.getElementById('privacy-copy').textContent =
+    hosted ? dict.privacyCopyHosted : dict.privacyCopy;
+
+  for (const button of document.querySelectorAll('#lang button')) {
+    button.setAttribute('aria-pressed', String(button.dataset.lang === lang));
+  }
+}
+
+const picker = document.getElementById('lang');
+for (const { code, label, name, htmlLang } of LANGS) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.dataset.lang = code;
+  button.textContent = label;
+  button.lang = htmlLang;
+  button.title = name;
+  button.setAttribute('aria-label', name);
+  button.addEventListener('click', () => {
+    lang = code;
+    try { localStorage.setItem(STORAGE_KEY, code); } catch { /* private mode */ }
+    apply();
+  });
+  picker.append(button);
+}
+
+apply();
+
 document.getElementById('host').textContent = location.hostname || '';
 
 // The server rewrites __SUPPORT_URL__ when it serves this page; an empty one means
@@ -213,11 +402,7 @@ if (!href || href.startsWith('__SUPPORT')) coffee.hidden = true;
 // Hosted, the files do reach the server's memory for the length of a session — say so here
 // rather than letting the local-only claim stand for everyone.
 fetch('/api/mode').then(r => r.json()).then(m => {
-  if (m.mode === 'hosted') {
-    document.getElementById('privacy-copy').textContent =
-      'Nothing installed, no account, nothing written to disk. Your files live in memory for ' +
-      'one session and are dropped the moment it ends or goes idle.';
-  }
+  if (m.mode === 'hosted') { hosted = true; apply(); }
 }).catch(() => { /* the copy above is the right default */ });
 </script>
 </body>
