@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import base64
+import hmac
 import io
 import json
+import os
 import threading
+import time
 import webbrowser
+from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote
@@ -16,10 +21,18 @@ from PIL import Image
 from ..assets import DEFAULT_TOLERANCE, DEFAULT_WIDTHS, load_asset_bytes
 from ..compose import Placement, apply_placements
 from ..scanify import scanify_document
+from .sessions import CookieSessions, SingleSession
 
 HERE = Path(__file__).parent
 PREVIEW_DPI = 110
 ASSET_SLOTS = ("signature", "stamp")
+COOKIE = "ss_sid"
+
+# Hosted guard rails. A public instance renders whatever it is handed, so cap the work per
+# request: an unbounded PDF at an unbounded DPI is a trivial way to exhaust a small container.
+MAX_UPLOAD_BYTES = int(os.environ.get("SCAN_SIGN_MAX_UPLOAD_MB", "25")) * 1024 * 1024
+MAX_PAGES = int(os.environ.get("SCAN_SIGN_MAX_PAGES", "40"))
+MAX_SCAN_DPI = 200
 
 
 class Session:
@@ -48,6 +61,9 @@ class Session:
     def set_pdf(self, data: bytes, name: str) -> None:
         with self.lock:
             doc = fitz.open(stream=data, filetype="pdf")
+            if doc.page_count > MAX_PAGES:
+                doc.close()
+                raise ValueError(f"too many pages ({doc.page_count}); this instance allows {MAX_PAGES}")
             if self.doc is not None:
                 self.doc.close()
             self.doc, self.pdf_bytes, self.pdf_name = doc, data, name
@@ -140,6 +156,17 @@ class Session:
                 "initial_page": self.initial_page,
             }
 
+    def close(self) -> None:
+        with self.lock:
+            if self.doc is not None:
+                self.doc.close()
+                self.doc = None
+            self.pdf_bytes = None
+            self.raw_assets.clear()
+            self.assets.clear()
+            self._page_png.clear()
+            self._asset_png.clear()
+
     # ------------------------------------------------------------- producing
     def build_pdf(self, placements: list[Placement], scan: dict | None) -> tuple[bytes, str]:
         with self.lock:
@@ -151,7 +178,7 @@ class Session:
                 if scan and scan.get("enabled"):
                     scanned = scanify_document(
                         doc,
-                        dpi=int(scan.get("dpi", 200)),
+                        dpi=max(72, min(MAX_SCAN_DPI, int(scan.get("dpi", 200)))),
                         strength=float(scan.get("strength", 0.5)),
                         max_angle=float(scan.get("rotate", 0.8)),
                         grayscale=bool(scan.get("grayscale")),
@@ -182,9 +209,11 @@ def _parse_placements(items) -> list[Placement]:
     ]
 
 
-def _handler(s: Session):
+def _handler(store, password: str | None = None):
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
+        session = None
+        _new_cookie = None
 
         def log_message(self, *args):
             pass
@@ -194,6 +223,12 @@ def _handler(s: Session):
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
+            if self._new_cookie:
+                secure = "; Secure" if self.headers.get("X-Forwarded-Proto") == "https" else ""
+                self.send_header(
+                    "Set-Cookie", f"{COOKIE}={self._new_cookie}; Path=/; HttpOnly; SameSite=Lax{secure}"
+                )
+                self._new_cookie = None
             for k, v in (extra or {}).items():
                 self.send_header(k, v)
             self.end_headers()
@@ -204,10 +239,39 @@ def _handler(s: Session):
 
         def _body(self) -> bytes:
             length = int(self.headers.get("Content-Length", 0))
+            if length > MAX_UPLOAD_BYTES:
+                raise ValueError(f"upload too large (limit {MAX_UPLOAD_BYTES // (1024 * 1024)} MB)")
             return self.rfile.read(length) if length else b""
 
+        def _authorized(self) -> bool:
+            if not password:
+                return True
+            header = self.headers.get("Authorization", "")
+            if header.startswith("Basic "):
+                try:
+                    supplied = base64.b64decode(header[6:]).decode().split(":", 1)[-1]
+                    if hmac.compare_digest(supplied, password):
+                        return True
+                except Exception:
+                    pass
+            self.send_response(401)
+            self.send_header("WWW-Authenticate", 'Basic realm="scan-sign"')
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return False
+
+        def _begin(self) -> bool:
+            if not self._authorized():
+                return False
+            cookie = SimpleCookie(self.headers.get("Cookie", ""))
+            current = cookie[COOKIE].value if COOKIE in cookie else None
+            self.session, self._new_cookie = store.resolve(current)
+            return True
+
         def do_GET(self):
-            path = self.path.split("?")[0]
+            if not self._begin():
+                return
+            s, path = self.session, self.path.split("?")[0]
             try:
                 if path in ("/", "/index.html"):
                     self._send((HERE / "index.html").read_bytes(), "text/html; charset=utf-8")
@@ -223,7 +287,9 @@ def _handler(s: Session):
                 self._json({"error": str(e)}, 400)
 
         def do_POST(self):
-            path = self.path.split("?")[0]
+            if not self._begin():
+                return
+            s, path = self.session, self.path.split("?")[0]
             try:
                 if path.startswith("/api/upload/"):
                     kind = path[len("/api/upload/") :]
@@ -251,15 +317,18 @@ def _handler(s: Session):
                         extra={"Content-Disposition": f'attachment; filename="{filename}"'},
                     )
 
-                if path == "/api/save":
-                    s.result = _parse_placements(json.loads(self._body() or b"[]"))
-                    self._json({"ok": True})
-                    return s.done.set()
+                # Handing results back to a terminal, and stopping the process, only make sense
+                # for the local tool — a visitor must not be able to end everyone's session.
+                if not store.hosted:
+                    if path == "/api/save":
+                        s.result = _parse_placements(json.loads(self._body() or b"[]"))
+                        self._json({"ok": True})
+                        return s.done.set()
 
-                if path in ("/api/cancel", "/api/quit"):
-                    s.result = None
-                    self._json({"ok": True})
-                    return s.done.set()
+                    if path in ("/api/cancel", "/api/quit"):
+                        s.result = None
+                        self._json({"ok": True})
+                        return s.done.set()
 
                 self._send(b"not found", "text/plain", 404)
             except Exception as e:  # surface the reason in the UI instead of a bare 500
@@ -269,7 +338,7 @@ def _handler(s: Session):
 
 
 def serve(session: Session, open_browser: bool = True, port: int = 0):
-    server = ThreadingHTTPServer(("127.0.0.1", port), _handler(session))
+    server = ThreadingHTTPServer(("127.0.0.1", port), _handler(SingleSession(session)))
     url = f"http://127.0.0.1:{server.server_address[1]}/"
     threading.Thread(target=server.serve_forever, daemon=True).start()
 
@@ -284,6 +353,28 @@ def serve(session: Session, open_browser: bool = True, port: int = 0):
     finally:
         threading.Thread(target=server.shutdown, daemon=True).start()
     return session.result
+
+
+def serve_hosted(host: str = "0.0.0.0", port: int = 8080, password: str | None = None) -> None:
+    """Public deployment: one session per browser, no way to stop the process from the page."""
+    store = CookieSessions(factory=lambda: Session(mode="hosted"))
+    server = ThreadingHTTPServer((host, port), _handler(store, password=password))
+    server.daemon_threads = True
+
+    def janitor():
+        while True:
+            time.sleep(60)
+            store.sweep()
+
+    threading.Thread(target=janitor, daemon=True).start()
+    print(
+        f"scan-sign listening on {host}:{port} "
+        f"(sessions={store.max_sessions}, idle timeout={store.ttl}s, "
+        f"upload limit={MAX_UPLOAD_BYTES // (1024 * 1024)}MB, "
+        f"password={'on' if password else 'off'})",
+        flush=True,
+    )
+    server.serve_forever()
 
 
 def pick_placements(doc, assets, initial=None, page: int = 0, open_browser: bool = True, **kw):

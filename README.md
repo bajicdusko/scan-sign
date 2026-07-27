@@ -93,6 +93,27 @@ their ink before placing.
 Default sizes are 150 pt wide for the signature and 120 pt for the stamp; override with
 `--signature-width` / `--stamp-width` (in mm) or resize in the page.
 
+## Hosting it
+
+`python -m scan_sign.server` runs the same UI as a public service: every browser gets its own
+in-memory session (cookie-keyed), and the *save to disk* and *quit* endpoints are switched off so
+a visitor can't write to the host or stop the process. Sessions are dropped after 30 minutes idle,
+capped at 40 at a time, and nothing is ever written to the server's disk.
+
+| env var | default | purpose |
+| --- | --- | --- |
+| `PORT` | `8080` | listen port |
+| `SCAN_SIGN_PASSWORD` | unset | when set, the whole instance sits behind HTTP basic auth |
+| `SCAN_SIGN_MAX_UPLOAD_MB` | `25` | per-file upload cap |
+| `SCAN_SIGN_MAX_PAGES` | `40` | reject PDFs longer than this |
+
+A `railway.json` and `Procfile` are included, so `railway up` deploys it as-is.
+
+**Think before you host this publicly.** People upload their signature to it — that is about the
+most forgeable thing they own. A hosted instance holds it in memory for the length of a session,
+and anyone who can reach the URL can use the tool. Set `SCAN_SIGN_PASSWORD` at minimum, and prefer
+running it locally for anything real.
+
 ## Notes
 
 - `-p/--page` picks the page the UI opens on (1-based). Default is the last page.

@@ -100,6 +100,12 @@
   <button class="wide" id="save">Save to disk &amp; close</button>
   <button class="wide" id="quit">Quit</button>
 
+  <div class="hint" id="hosted-note" hidden style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px">
+    Your files stay in this browser session only, in memory, and are dropped when it goes idle.
+    Nothing is written to disk on the server. For anything sensitive, run scan-sign locally —
+    <code>pipx install git+https://github.com/bajicdusko/scan-sign</code>
+  </div>
+
   <h2>Keys</h2>
   <div class="hint">
     <kbd>drag</kbd> move · <kbd>wheel</kbd> size<br>
@@ -145,6 +151,7 @@ async function boot() {
   $('#quit').style.display = DOC.mode === 'serve' ? '' : 'none';
   $('#save').style.display = DOC.mode === 'cli' ? '' : 'none';
   $('#save').title = DOC.output ? 'writes ' + DOC.output : '';
+  if (DOC.mode === 'hosted') $('#hosted-note').hidden = false;
 }
 
 function applyManifest(m, keepPlacements) {
