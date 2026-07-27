@@ -214,10 +214,6 @@ async function boot() {
     return showGate();
   }
   applyManifest(m);
-  $('#quit').style.display = DOC.mode === 'serve' ? '' : 'none';
-  $('#save').style.display = DOC.mode === 'cli' ? '' : 'none';
-  $('#save').title = DOC.output ? 'writes ' + DOC.output : '';
-  if (DOC.mode === 'hosted') $('#hosted-note').hidden = false;
 }
 
 function applyManifest(m, keepPlacements) {
@@ -234,6 +230,11 @@ function applyManifest(m, keepPlacements) {
     current = first ? first.name : null;
   }
   renderSlots();
+  // Set here rather than in boot(): hosted mode leaves boot() early for the name gate, and the
+  // first manifest it ever sees comes back from /api/start.
+  $('#quit').style.display = m.mode === 'serve' ? '' : 'none';
+  $('#save').style.display = m.mode === 'cli' ? '' : 'none';
+  $('#save').title = m.output ? 'writes ' + m.output : '';
   if (m.mode === 'hosted') {
     $('#whoami').classList.add('on');
     $('#whoname').textContent = m.name;   // textContent, never innerHTML — it is visitor input
