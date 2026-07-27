@@ -1,19 +1,33 @@
 # scan-sign
 
-Drop a signature and a stamp onto a PDF, pick the spot visually, save.
-Optionally re-render the result so it looks like it came off a scanner — slight skew, a little
-sensor noise, soft corner shading, mild JPEG recompression. Tuned for a current office
-machine rather than a 2003 fax; push `--scan-strength` up if you want it grubbier.
+Put a signature and a stamp onto a PDF. Place them by eye in a browser page, then save or
+download the result.
 
-## Setup
+Optionally re-render the whole thing so it looks like it came off a scanner — slight skew, a
+little sensor noise, soft corner shading, mild JPEG recompression. Tuned for a current office
+machine rather than a 2003 fax; turn the strength up if you want it grubbier.
+
+**Try it:** [scan-sign-production.up.railway.app](https://scan-sign-production.up.railway.app) —
+type a name, load your files, download the result. Nothing is stored; see
+[Hosting it](#hosting-it) before using it for anything real.
+
+## Install
 
 ```bash
+git clone https://github.com/bajicdusko/scan-sign && cd scan-sign
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 ```
 
-The `./scan-sign` launcher uses that venv, so nothing needs to be activated.
+The `./scan-sign` launcher uses that venv, so nothing needs activating. Or install the command
+straight from the repo:
 
-## Two ways to run it
+```bash
+pipx install git+https://github.com/bajicdusko/scan-sign     # then just: scan-sign
+```
+
+Python 3.9+. The only dependencies are PyMuPDF, Pillow and NumPy.
+
+## Three ways to run it
 
 ### 1. Browser app — everything in the page
 
@@ -21,13 +35,12 @@ The `./scan-sign` launcher uses that venv, so nothing needs to be activated.
 ./scan-sign
 ```
 
-Opens a local page where you choose the PDF, the signature and the stamp from your
-filesystem, place them, and hit **Download signed PDF**. Nothing is written to disk by the
-tool itself; the file lands in your normal downloads folder as `<name>-signed.pdf`.
-**Quit** stops the server.
+Opens a local page where you choose the PDF, the signature and the stamp from your filesystem,
+place them, and hit **Download signed PDF**. The file lands in your normal downloads folder as
+`<name>-signed.pdf`. **Quit** stops the server.
 
-Files never leave the machine — the server binds to `127.0.0.1` on a random free port
-(`--port` to pin it).
+Files never leave the machine — it binds to `127.0.0.1` on a random free port (`--port` to pin
+one, `--no-browser` to print the URL instead of opening a tab).
 
 ### 2. From the command line
 
@@ -36,13 +49,21 @@ Files never leave the machine — the server binds to `127.0.0.1` on a random fr
 ```
 
 Same page, but the files are already loaded and **Save to disk & close** writes
-`contract-signed.pdf` (or `-o …`) and returns you to the terminal. The download button
-works here too.
+`contract-signed.pdf` (or `-o …`) and returns you to the terminal. The download button works
+here too.
+
+### 3. Hosted, for other people
+
+```bash
+python -m scan_sign.server
+```
+
+The public flavour: visitors name their own session. See [Hosting it](#hosting-it).
 
 ## Placing
 
-- **click** the page to drop the selected overlay, **drag** to move, **wheel** or the
-  size slider to resize, corner handle to scale
+- **click** the page to drop the selected overlay, **drag** to move, **wheel** or the size
+  slider to resize, corner handle to scale
 - `[` / `]` rotate (hold ⇧ for 5° steps), arrows nudge, ⌫ deletes, `tab` switches
   signature/stamp
 - ◀ ▶ change page — overlays stay on the page you dropped them on
@@ -67,8 +88,25 @@ Tick **fake a scan** in the page, or from the CLI:
 | `--scan-dpi 300` | rasterization DPI (default `200`) |
 | `--seed 7` | reproducible artifacts |
 
-`--scan` turns pages into images — the text stops being selectable. That is the point, but
-skip it if you need a text-searchable PDF.
+`--scan` turns pages into images — the text stops being selectable. That is the point, but skip
+it if you need a text-searchable PDF.
+
+## Images
+
+PNGs with alpha are used as-is. A photo or scan of a signature on paper gets the paper keyed out
+automatically: the paper colour is measured *locally* across the image, so grey, yellowed and
+unevenly lit scans key out cleanly instead of leaving a tinted rectangle behind the signature.
+Partly transparent edge pixels have the paper subtracted back out, so there is no coloured halo
+around the strokes.
+
+Toggle it per overlay with **cut paper background**, and use the **tolerance** slider beside it
+(or `--bg-tolerance`, default 34): raise it if some paper survives, lower it if light ink gets
+eaten. `--remove-bg auto|always|never` controls whether keying runs at all — `auto` means "only
+when the image has no alpha channel of its own". Overlays are trimmed to their ink before
+placing.
+
+Default sizes are 150 pt wide for the signature and 120 pt for the stamp; override with
+`--signature-width` / `--stamp-width` (in mm) or just resize in the page.
 
 ## Repeat the same layout
 
@@ -80,29 +118,23 @@ skip it if you need a text-searchable PDF.
 `--layout` without `--no-gui` opens the picker pre-populated. `--no-gui` with no layout falls
 back to an automatic bottom-of-the-last-page placement.
 
-## Images
-
-PNGs with alpha are used as-is. A photo or scan of a signature on paper gets the paper keyed
-out automatically: the paper colour is measured locally across the image, so grey, yellowed and
-unevenly lit scans key out cleanly instead of leaving a tinted rectangle. Toggle it per overlay
-with **cut paper background**, and use the **tolerance** slider next to it (or `--bg-tolerance`,
-default 34) if some paper survives — raise it — or if light ink gets eaten — lower it.
-`--remove-bg auto|always|never` controls whether keying runs at all. Overlays are trimmed to
-their ink before placing.
-
-Default sizes are 150 pt wide for the signature and 120 pt for the stamp; override with
-`--signature-width` / `--stamp-width` (in mm) or resize in the page.
-
 ## Hosting it
 
 `python -m scan_sign.server` runs the same UI as a public service. There is no login: a visitor
-types a name, which starts a private session for that browser. Sessions are held in memory only,
-are never resumed — loading the page again always starts a fresh one — and the *save to disk* and
-*quit* endpoints are switched off so a visitor can't write to the host or stop the process.
-Sessions are dropped on **New**, after 30 minutes idle, or when the 40-session cap evicts them.
+types a name, which starts a private session for that browser.
 
-The name is a label, not a credential. It identifies your session in the UI; it does not protect
-anything, and it can't be used to get back into a session later.
+- Sessions live **in memory only** — nothing is ever written to the server's disk.
+- Sessions are **never resumed**. Loading the page ends whatever that browser still held and
+  asks for a name again, so coming back always starts fresh and nobody inherits the files of
+  whoever used the browser before them.
+- They are dropped on **New**, after 30 minutes idle, or when the 40-session cap evicts the
+  oldest.
+- *Save to disk* and *quit* are not routed at all, so a visitor can't write to the host or stop
+  the process.
+- Uploads, page counts and the render DPI are capped, so one request can't exhaust the container.
+
+The name is a label, not a credential. It identifies your session in the UI; it protects nothing
+and can't be used to get back into a session later.
 
 | env var | default | purpose |
 | --- | --- | --- |
@@ -113,15 +145,19 @@ anything, and it can't be used to get back into a session later.
 A `railway.json` and `Procfile` are included, so `railway up` deploys it as-is.
 
 **Anyone who can reach the URL can use it.** People upload their signature to this — about the
-most forgeable thing they own. Nothing is written to the server's disk and sessions are isolated
-and short-lived, but a public instance is still a public instance: put it behind your own
-network controls if that matters, and run it locally for anything real.
+most forgeable thing they own. Sessions are isolated, short-lived and never hit disk, but a
+public instance is still a public instance: put it behind your own network controls if that
+matters, and run it locally for anything real.
 
 ## Notes
 
 - `-p/--page` picks the page the UI opens on (1-based). Default is the last page.
-- `--no-browser` prints the local URL instead of opening a tab.
-- Placements live in the browser tab — reloading the page loses them (it asks first).
-- `--picker tk` uses a native Tkinter window instead. It has the same placement features but
-  no file loading or download, and it is untested here — macOS system Python ships a
-  deprecated Tk 8.5. The browser UI is the default for that reason.
+- Placements live in the browser tab. Reloading loses them — the page asks first — and on a
+  hosted instance a reload also ends the session.
+- `--picker tk` opens a native Tkinter window instead of the browser page. Same placement
+  features, but no file loading and no download, and it is untested: macOS system Python ships
+  a deprecated Tk 8.5. The browser UI is the default for that reason.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
