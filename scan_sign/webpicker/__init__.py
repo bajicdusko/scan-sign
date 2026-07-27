@@ -1,0 +1,301 @@
+"""Browser UI: load files, place the overlays, download (or hand back to the CLI)."""
+
+from __future__ import annotations
+
+import io
+import json
+import threading
+import webbrowser
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from urllib.parse import unquote
+
+import fitz
+from PIL import Image
+
+from ..assets import DEFAULT_TOLERANCE, DEFAULT_WIDTHS, load_asset_bytes
+from ..compose import Placement, apply_placements
+from ..scanify import scanify_document
+
+HERE = Path(__file__).parent
+PREVIEW_DPI = 110
+ASSET_SLOTS = ("signature", "stamp")
+
+
+class Session:
+    """Everything the browser can look at or replace, guarded by one lock."""
+
+    def __init__(self, mode: str, output: Path | None = None):
+        self.mode = mode
+        self.output = output
+        self.lock = threading.RLock()
+        self.doc: fitz.Document | None = None
+        self.pdf_name: str | None = None
+        self.pdf_bytes: bytes | None = None
+        self.assets: dict = {}
+        self.raw_assets: dict[str, bytes] = {}
+        self.bg_mode: dict[str, str] = {}
+        self.bg_tolerance: dict[str, int] = {}
+        self.placements: list[Placement] = []
+        self.initial_page = 0
+        self.token = 0
+        self._page_png: dict[int, bytes] = {}
+        self._asset_png: dict[str, bytes] = {}
+        self.result: list[Placement] | None = None
+        self.done = threading.Event()
+
+    # ------------------------------------------------------------- mutation
+    def set_pdf(self, data: bytes, name: str) -> None:
+        with self.lock:
+            doc = fitz.open(stream=data, filetype="pdf")
+            if self.doc is not None:
+                self.doc.close()
+            self.doc, self.pdf_bytes, self.pdf_name = doc, data, name
+            self.placements = []
+            self.initial_page = doc.page_count - 1
+            self._page_png.clear()
+            self.token += 1
+
+    def set_asset(self, name: str, data: bytes, filename: str, mode: str | None = None) -> None:
+        with self.lock:
+            self.raw_assets[name] = data
+            self.bg_mode[name] = mode or self.bg_mode.get(name, "auto")
+            self._reload_asset(name, filename)
+
+    def set_bg(self, name: str, mode: str | None = None, tolerance: int | None = None) -> None:
+        with self.lock:
+            if name not in self.raw_assets:
+                return
+            if mode:
+                self.bg_mode[name] = mode
+            if tolerance is not None:
+                self.bg_tolerance[name] = max(0, min(120, int(tolerance)))
+            self._reload_asset(name, self.assets[name].path.name)
+
+    def _reload_asset(self, name: str, filename: str) -> None:
+        keep_width = self.assets[name].default_width_pt if name in self.assets else DEFAULT_WIDTHS.get(name)
+        self.assets[name] = load_asset_bytes(
+            self.raw_assets[name],
+            name,
+            filename=filename,
+            remove_bg=self.bg_mode[name],
+            tolerance=self.bg_tolerance.get(name, DEFAULT_TOLERANCE),
+            width_pt=keep_width,
+        )
+        self._asset_png.pop(name, None)
+        self.token += 1
+
+    # -------------------------------------------------------------- reading
+    def page_png(self, i: int) -> bytes:
+        with self.lock:
+            if i not in self._page_png:
+                zoom = PREVIEW_DPI / 72.0
+                pix = self.doc[i].get_pixmap(matrix=fitz.Matrix(zoom, zoom), alpha=False)
+                img = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
+                buf = io.BytesIO()
+                img.save(buf, format="PNG", optimize=True)
+                self._page_png[i] = buf.getvalue()
+            return self._page_png[i]
+
+    def asset_png(self, name: str) -> bytes:
+        with self.lock:
+            if name not in self._asset_png:
+                self._asset_png[name] = self.assets[name].png_bytes()
+            return self._asset_png[name]
+
+    def manifest(self) -> dict:
+        with self.lock:
+            return {
+                "mode": self.mode,
+                "token": self.token,
+                "output": str(self.output) if self.output else None,
+                "pdf": (
+                    None
+                    if self.doc is None
+                    else {
+                        "name": self.pdf_name,
+                        "pages": [
+                            {"index": i, "width": p.rect.width, "height": p.rect.height,
+                             "url": f"/page/{i}.png?v={self.token}"}
+                            for i, p in enumerate(self.doc)
+                        ],
+                    }
+                ),
+                "slots": [
+                    {
+                        "name": n,
+                        "loaded": n in self.assets,
+                        "filename": self.assets[n].path.name if n in self.assets else None,
+                        "url": f"/asset/{n}.png?v={self.token}" if n in self.assets else None,
+                        "aspect": self.assets[n].aspect if n in self.assets else 1.0,
+                        "default_width_pt": self.assets[n].default_width_pt if n in self.assets
+                        else DEFAULT_WIDTHS.get(n, 140.0),
+                        "bg_mode": self.bg_mode.get(n, "auto"),
+                        "bg_removed": getattr(self.assets.get(n), "bg_removed", False),
+                        "bg_tolerance": self.bg_tolerance.get(n, DEFAULT_TOLERANCE),
+                    }
+                    for n in ASSET_SLOTS
+                ],
+                "placements": [p.__dict__ for p in self.placements],
+                "initial_page": self.initial_page,
+            }
+
+    # ------------------------------------------------------------- producing
+    def build_pdf(self, placements: list[Placement], scan: dict | None) -> tuple[bytes, str]:
+        with self.lock:
+            if self.doc is None:
+                raise ValueError("no PDF loaded")
+            doc = fitz.open(stream=self.pdf_bytes, filetype="pdf")
+            try:
+                apply_placements(doc, placements, self.assets)
+                if scan and scan.get("enabled"):
+                    scanned = scanify_document(
+                        doc,
+                        dpi=int(scan.get("dpi", 200)),
+                        strength=float(scan.get("strength", 0.5)),
+                        max_angle=float(scan.get("rotate", 0.8)),
+                        grayscale=bool(scan.get("grayscale")),
+                        keep_edges=bool(scan.get("keep_edges")),
+                        corner_damage=bool(scan.get("corner_damage", True)),
+                        seed=scan.get("seed"),
+                    )
+                    doc.close()
+                    doc = scanned
+                data = doc.tobytes(garbage=3, deflate=True)
+            finally:
+                doc.close()
+            stem = Path(self.pdf_name or "document.pdf").stem
+            return data, f"{stem}-signed.pdf"
+
+
+def _parse_placements(items) -> list[Placement]:
+    return [
+        Placement(
+            asset=i["asset"],
+            page=int(i["page"]),
+            cx=float(i["cx"]),
+            cy=float(i["cy"]),
+            width_pt=float(i["width_pt"]),
+            angle=float(i.get("angle", 0.0)),
+        )
+        for i in items
+    ]
+
+
+def _handler(s: Session):
+    class Handler(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def log_message(self, *args):
+            pass
+
+        def _send(self, body: bytes, ctype: str, status: int = 200, extra: dict | None = None) -> None:
+            self.send_response(status)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            for k, v in (extra or {}).items():
+                self.send_header(k, v)
+            self.end_headers()
+            self.wfile.write(body)
+
+        def _json(self, obj, status: int = 200) -> None:
+            self._send(json.dumps(obj).encode(), "application/json", status)
+
+        def _body(self) -> bytes:
+            length = int(self.headers.get("Content-Length", 0))
+            return self.rfile.read(length) if length else b""
+
+        def do_GET(self):
+            path = self.path.split("?")[0]
+            try:
+                if path in ("/", "/index.html"):
+                    self._send((HERE / "index.html").read_bytes(), "text/html; charset=utf-8")
+                elif path == "/api/doc":
+                    self._json(s.manifest())
+                elif path.startswith("/page/"):
+                    self._send(s.page_png(int(path[len("/page/") : -len(".png")])), "image/png")
+                elif path.startswith("/asset/"):
+                    self._send(s.asset_png(path[len("/asset/") : -len(".png")]), "image/png")
+                else:
+                    self._send(b"not found", "text/plain", 404)
+            except (KeyError, ValueError, IndexError, TypeError) as e:
+                self._json({"error": str(e)}, 400)
+
+        def do_POST(self):
+            path = self.path.split("?")[0]
+            try:
+                if path.startswith("/api/upload/"):
+                    kind = path[len("/api/upload/") :]
+                    filename = unquote(self.headers.get("X-Filename", kind))
+                    data = self._body()
+                    if kind == "pdf":
+                        s.set_pdf(data, filename)
+                    elif kind in ASSET_SLOTS:
+                        s.set_asset(kind, data, filename)
+                    else:
+                        return self._json({"error": f"unknown upload kind {kind}"}, 400)
+                    return self._json(s.manifest())
+
+                if path.startswith("/api/bg/"):
+                    payload = json.loads(self._body() or b"{}")
+                    s.set_bg(path[len("/api/bg/") :], payload.get("mode"), payload.get("tolerance"))
+                    return self._json(s.manifest())
+
+                if path == "/api/render":
+                    payload = json.loads(self._body() or b"{}")
+                    data, filename = s.build_pdf(_parse_placements(payload.get("placements", [])), payload.get("scan"))
+                    return self._send(
+                        data,
+                        "application/pdf",
+                        extra={"Content-Disposition": f'attachment; filename="{filename}"'},
+                    )
+
+                if path == "/api/save":
+                    s.result = _parse_placements(json.loads(self._body() or b"[]"))
+                    self._json({"ok": True})
+                    return s.done.set()
+
+                if path in ("/api/cancel", "/api/quit"):
+                    s.result = None
+                    self._json({"ok": True})
+                    return s.done.set()
+
+                self._send(b"not found", "text/plain", 404)
+            except Exception as e:  # surface the reason in the UI instead of a bare 500
+                self._json({"error": f"{type(e).__name__}: {e}"}, 400)
+
+    return Handler
+
+
+def serve(session: Session, open_browser: bool = True, port: int = 0):
+    server = ThreadingHTTPServer(("127.0.0.1", port), _handler(session))
+    url = f"http://127.0.0.1:{server.server_address[1]}/"
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+
+    print(f"scan-sign UI → {url}   (Ctrl-C to stop)", flush=True)
+    if open_browser:
+        webbrowser.open(url)
+    try:
+        session.done.wait()
+    except KeyboardInterrupt:
+        session.result = None
+        print()
+    finally:
+        threading.Thread(target=server.shutdown, daemon=True).start()
+    return session.result
+
+
+def pick_placements(doc, assets, initial=None, page: int = 0, open_browser: bool = True, **kw):
+    """CLI path: the document and assets are already loaded, return the chosen placements."""
+    s = Session(mode="cli", output=kw.get("output"))
+    s.doc = doc
+    s.pdf_bytes = doc.tobytes()
+    s.pdf_name = kw.get("pdf_name", "document.pdf")
+    s.assets = dict(assets)
+    s.raw_assets = {n: a.path.read_bytes() for n, a in assets.items() if a.path.is_file()}
+    s.bg_mode = {n: kw.get("bg_mode", "auto") for n in assets}
+    s.bg_tolerance = {n: a.bg_tolerance for n, a in assets.items()}
+    s.placements = list(initial or [])
+    s.initial_page = page
+    return serve(s, open_browser=open_browser, port=kw.get("port", 0))

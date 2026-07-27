@@ -1,0 +1,409 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>scan-sign</title>
+<style>
+  :root { color-scheme: dark; --bg:#1c1d20; --panel:#26282c; --line:#3a3d43; --fg:#e8e8ea;
+          --muted:#9a9ea6; --accent:#4c9aff; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+         background:var(--bg); color:var(--fg); display:flex; height:100vh; overflow:hidden; }
+  #side { width:262px; flex:none; background:var(--panel); border-right:1px solid var(--line);
+          padding:14px; overflow-y:auto; }
+  #stage { flex:1; overflow:auto; display:flex; align-items:flex-start; justify-content:center; padding:24px; }
+  #empty { margin:auto; text-align:center; color:var(--muted); max-width:340px; }
+  #page { position:relative; background:#fff; box-shadow:0 6px 30px rgba(0,0,0,.55); user-select:none; touch-action:none; }
+  #page img.bg { display:block; width:100%; height:100%; pointer-events:none; }
+  .ov { position:absolute; transform-origin:center center; cursor:move; }
+  .ov img { width:100%; height:100%; display:block; pointer-events:none; -webkit-user-drag:none; }
+  .ov.sel { outline:2px dashed var(--accent); outline-offset:2px; }
+  .handle { position:absolute; right:-7px; bottom:-7px; width:14px; height:14px; background:var(--accent);
+            border-radius:3px; cursor:nwse-resize; display:none; }
+  .ov.sel .handle { display:block; }
+  h2 { font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin:16px 0 7px; }
+  h2:first-child { margin-top:0; }
+  button { font:inherit; background:#33363c; color:var(--fg); border:1px solid var(--line);
+           border-radius:6px; padding:6px 9px; cursor:pointer; }
+  button:hover:not(:disabled) { background:#3c4046; }
+  button:disabled { opacity:.45; cursor:default; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#08203f; font-weight:600; }
+  button.wide { width:100%; margin-bottom:6px; }
+  .slot { border:1px solid var(--line); border-radius:7px; margin-bottom:7px; background:#2c2f34; padding:7px; }
+  .slot.on { border-color:var(--accent); background:#2f3a4c; }
+  .slot .top { display:flex; align-items:center; gap:8px; }
+  .slot .name { flex:1; font-weight:600; text-transform:capitalize; }
+  .slot .file { color:var(--muted); font-size:11px; margin-top:4px; overflow:hidden;
+                text-overflow:ellipsis; white-space:nowrap; }
+  .slot img.thumb { height:26px; max-width:60px; object-fit:contain; background:#fff; border-radius:3px; padding:2px; }
+  .slot .opts { margin-top:5px; font-size:11px; color:var(--muted); }
+  label.file-btn { display:inline-block; background:#33363c; border:1px solid var(--line); border-radius:6px;
+                   padding:4px 8px; cursor:pointer; font-size:11px; }
+  label.file-btn:hover { background:#3c4046; }
+  input[type=file] { display:none; }
+  .row { display:flex; gap:6px; align-items:center; }
+  #pageno { flex:1; text-align:center; }
+  input[type=range] { width:100%; }
+  #info { color:var(--muted); font-variant-numeric:tabular-nums; white-space:pre-line; min-height:52px; }
+  kbd { background:#33363c; border:1px solid var(--line); border-radius:3px; padding:0 4px; font-size:11px; }
+  .hint { color:#8b8f97; font-size:11px; line-height:1.7; }
+  #scanbox { display:none; padding-left:2px; }
+  #scanbox.on { display:block; }
+  #toast { position:fixed; left:50%; top:14px; transform:translateX(-50%); background:#33363c;
+           border:1px solid var(--line); border-radius:8px; padding:9px 16px; display:none; max-width:70vw; }
+  #toast.err { border-color:#c0453f; background:#3a2626; }
+</style>
+</head>
+<body>
+<div id="side">
+  <h2>Document</h2>
+  <div class="slot" id="pdfslot">
+    <div class="top">
+      <span class="name">PDF</span>
+      <label class="file-btn">Choose…<input type="file" id="pdffile" accept="application/pdf,.pdf"></label>
+    </div>
+    <div class="file" id="pdfname">none loaded</div>
+  </div>
+
+  <h2>Overlays</h2>
+  <div id="slots"></div>
+  <div class="hint">Click the page to drop the selected overlay.</div>
+
+  <h2>Page</h2>
+  <div class="row">
+    <button id="prev">◀</button><span id="pageno">– / –</span><button id="next">▶</button>
+  </div>
+
+  <h2>Selected</h2>
+  <div id="info">—</div>
+  <label style="display:block;margin-top:8px">Size <span id="wlab"></span>
+    <input type="range" id="size" min="10" max="400" step="1"></label>
+  <label style="display:block">Angle <span id="alab"></span>
+    <input type="range" id="angle" min="-45" max="45" step="0.5"></label>
+  <button class="wide" id="dup">Duplicate</button>
+  <button class="wide" id="del">Delete</button>
+
+  <h2>Scanned look</h2>
+  <label><input type="checkbox" id="scan"> fake a scan</label>
+  <div id="scanbox">
+    <label style="display:block;margin-top:6px">Strength <span id="slab">0.5</span>
+      <input type="range" id="strength" min="0" max="1" step="0.05" value="0.5"></label>
+    <label style="display:block">Max skew <span id="rlab">0.8°</span>
+      <input type="range" id="skew" min="0" max="3" step="0.1" value="0.8"></label>
+    <label><input type="checkbox" id="gray"> grayscale</label><br>
+    <label><input type="checkbox" id="edges"> show paper edges</label><br>
+    <label><input type="checkbox" id="corner" checked> corner damage</label>
+  </div>
+
+  <h2>Finish</h2>
+  <button class="wide primary" id="download">Download signed PDF</button>
+  <button class="wide" id="save">Save to disk &amp; close</button>
+  <button class="wide" id="quit">Quit</button>
+
+  <h2>Keys</h2>
+  <div class="hint">
+    <kbd>drag</kbd> move · <kbd>wheel</kbd> size<br>
+    <kbd>[</kbd> <kbd>]</kbd> rotate · <kbd>⇧</kbd> = ×5<br>
+    <kbd>←↑↓→</kbd> nudge · <kbd>⌫</kbd> delete<br>
+    <kbd>tab</kbd> switch overlay · <kbd>enter</kbd> download
+  </div>
+</div>
+
+<div id="stage">
+  <div id="empty">Load a PDF and a signature to get started.</div>
+  <div id="page" hidden><img class="bg" id="bg"></div>
+</div>
+<div id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+let DOC = null, placements = [], pageIndex = 0, selected = null, current = null, scale = 1, busy = false;
+const el = { page: $('#page'), bg: $('#bg'), info: $('#info'), size: $('#size'), angle: $('#angle') };
+
+function toast(msg, isErr) {
+  const t = $('#toast');
+  t.textContent = msg; t.className = isErr ? 'err' : '';
+  t.style.display = 'block';
+  clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', isErr ? 6000 : 2600);
+}
+
+async function api(url, opts) {
+  const res = await fetch(url, opts);
+  const ct = res.headers.get('Content-Type') || '';
+  if (!res.ok) {
+    const msg = ct.includes('json') ? (await res.json()).error : await res.text();
+    throw new Error(msg || res.status);
+  }
+  return ct.includes('json') ? res.json() : res.blob();
+}
+
+function slotOf(name) { return DOC.slots.find(s => s.name === name); }
+function loadedSlots() { return DOC.slots.filter(s => s.loaded); }
+
+async function boot() {
+  applyManifest(await api('/api/doc'));
+  $('#quit').style.display = DOC.mode === 'serve' ? '' : 'none';
+  $('#save').style.display = DOC.mode === 'cli' ? '' : 'none';
+  $('#save').title = DOC.output ? 'writes ' + DOC.output : '';
+}
+
+function applyManifest(m, keepPlacements) {
+  const hadDoc = DOC && DOC.pdf && m.pdf && DOC.pdf.name === m.pdf.name;
+  DOC = m;
+  if (!keepPlacements && !hadDoc) {
+    placements = m.placements.map(p => ({...p}));
+    pageIndex = m.initial_page;
+    selected = null;
+  }
+  placements = placements.filter(p => slotOf(p.asset) && slotOf(p.asset).loaded);
+  if (!current || !slotOf(current).loaded) {
+    const first = loadedSlots()[0];
+    current = first ? first.name : null;
+  }
+  renderSlots();
+  $('#pdfname').textContent = m.pdf ? m.pdf.name : 'none loaded';
+  $('#pdfslot').classList.toggle('on', !!m.pdf);
+  if (m.pdf) {
+    pageIndex = Math.min(pageIndex, m.pdf.pages.length - 1);
+    $('#empty').hidden = true; el.page.hidden = false;
+    showPage(pageIndex);
+  } else {
+    $('#empty').hidden = false; el.page.hidden = true;
+    $('#pageno').textContent = '– / –';
+  }
+  updateButtons();
+}
+
+function renderSlots() {
+  const box = $('#slots');
+  box.innerHTML = '';
+  DOC.slots.forEach(s => {
+    const d = document.createElement('div');
+    d.className = 'slot' + (s.loaded && s.name === current ? ' on' : '');
+    d.innerHTML =
+      `<div class="top">
+         ${s.loaded ? `<img class="thumb" src="${s.url}">` : ''}
+         <span class="name">${s.name}</span>
+         <label class="file-btn">${s.loaded ? 'Replace…' : 'Choose…'}
+           <input type="file" accept="image/*" data-slot="${s.name}"></label>
+       </div>
+       <div class="file">${s.loaded ? s.filename : 'none loaded'}</div>
+       ${s.loaded ? `<div class="opts">
+          <label><input type="checkbox" data-bg="${s.name}" ${s.bg_removed ? 'checked' : ''}>
+            cut paper background</label>
+          <div data-tolwrap="${s.name}" style="${s.bg_removed ? '' : 'display:none'}">
+            tolerance <span data-tollab="${s.name}">${s.bg_tolerance}</span>
+            <input type="range" data-tol="${s.name}" min="4" max="110" step="2" value="${s.bg_tolerance}">
+          </div></div>` : ''}`;
+    d.querySelector('input[type=file]').addEventListener('change', e => upload(s.name, e.target.files[0]));
+    const bg = d.querySelector('input[data-bg]');
+    if (bg) bg.addEventListener('change', () => setBg(s.name, {mode: bg.checked ? 'always' : 'never'}));
+    const tol = d.querySelector('input[data-tol]');
+    if (tol) {
+      tol.addEventListener('input', () => d.querySelector(`[data-tollab="${s.name}"]`).textContent = tol.value);
+      tol.addEventListener('change', () => setBg(s.name, {tolerance: +tol.value}));
+    }
+    if (s.loaded) d.addEventListener('click', e => {
+      if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'LABEL') setAsset(s.name);
+    });
+    box.appendChild(d);
+  });
+}
+
+function setAsset(name) {
+  current = name;
+  [...document.querySelectorAll('#slots .slot')].forEach((d, i) =>
+    d.classList.toggle('on', DOC.slots[i].loaded && DOC.slots[i].name === name));
+}
+
+async function upload(kind, file) {
+  if (!file) return;
+  try {
+    const m = await api('/api/upload/' + kind, {
+      method: 'POST',
+      headers: {'X-Filename': encodeURIComponent(file.name), 'Content-Type': 'application/octet-stream'},
+      body: file,
+    });
+    if (kind !== 'pdf') current = kind;
+    applyManifest(m, kind !== 'pdf');
+    toast(`${kind}: ${file.name}`);
+  } catch (e) { toast('could not load ' + file.name + ' — ' + e.message, true); }
+}
+
+async function setBg(name, payload) {
+  try { applyManifest(await api('/api/bg/' + name, {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)}), true); }
+  catch (e) { toast(e.message, true); }
+}
+
+function showPage(i) {
+  pageIndex = i;
+  const p = DOC.pdf.pages[i];
+  const maxW = Math.min(window.innerWidth - 262 - 80, 1000), maxH = window.innerHeight - 60;
+  scale = Math.min(maxW / p.width, maxH / p.height);
+  el.page.style.width = p.width * scale + 'px';
+  el.page.style.height = p.height * scale + 'px';
+  if (el.bg.getAttribute('src') !== p.url) el.bg.src = p.url;
+  $('#pageno').textContent = `${i + 1} / ${DOC.pdf.pages.length}`;
+  if (selected && selected.page !== i) selected = null;
+  render();
+}
+
+function render() {
+  [...el.page.querySelectorAll('.ov')].forEach(n => n.remove());
+  placements.filter(p => p.page === pageIndex).forEach(p => {
+    const s = slotOf(p.asset);
+    const w = p.width_pt * scale, h = w * s.aspect;
+    const d = document.createElement('div');
+    d.className = 'ov' + (p === selected ? ' sel' : '');
+    d.style.cssText = `left:${p.cx * scale - w / 2}px;top:${p.cy * scale - h / 2}px;width:${w}px;height:${h}px;` +
+                      `transform:rotate(${-p.angle}deg)`;
+    d.innerHTML = `<img src="${s.url}"><div class="handle"></div>`;
+    d.addEventListener('pointerdown', e => startDrag(e, p));
+    el.page.appendChild(d);
+  });
+  updateInfo();
+  updateButtons();
+}
+
+function updateButtons() {
+  const ready = !!(DOC && DOC.pdf) && !busy;
+  $('#download').disabled = !ready;
+  $('#save').disabled = !ready;
+  ['#prev', '#next'].forEach(s => $(s).disabled = !(DOC && DOC.pdf));
+  ['#dup', '#del'].forEach(s => $(s).disabled = !selected);
+}
+
+function updateInfo() {
+  if (!selected) { el.info.textContent = '—'; $('#wlab').textContent = ''; $('#alab').textContent = ''; return; }
+  const h = selected.width_pt * slotOf(selected.asset).aspect, mm = v => (v / 72 * 25.4).toFixed(0);
+  el.info.textContent = `${selected.asset}\npage ${selected.page + 1}\n${mm(selected.width_pt)} × ${mm(h)} mm\n` +
+                        `angle ${selected.angle.toFixed(1)}°`;
+  el.size.value = Math.min(400, Math.max(10, selected.width_pt));
+  el.angle.value = Math.max(-45, Math.min(45, selected.angle));
+  $('#wlab').textContent = mm(selected.width_pt) + ' mm';
+  $('#alab').textContent = selected.angle.toFixed(1) + '°';
+}
+
+function select(p) { selected = p; render(); }
+
+function startDrag(e, p) {
+  e.stopPropagation();
+  select(p);
+  const resizing = e.target.classList.contains('handle');
+  const r = el.page.getBoundingClientRect();
+  const start = { x: e.clientX, y: e.clientY, w: p.width_pt };
+  const ox = (e.clientX - r.left) / scale - p.cx, oy = (e.clientY - r.top) / scale - p.cy;
+  const move = ev => {
+    if (resizing) {
+      const d = ((ev.clientX - start.x) + (ev.clientY - start.y)) / 2 / scale;
+      p.width_pt = Math.max(8, start.w + d * 2);
+    } else {
+      p.cx = (ev.clientX - r.left) / scale - ox;
+      p.cy = (ev.clientY - r.top) / scale - oy;
+    }
+    render();
+  };
+  const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up);
+}
+
+el.page.addEventListener('pointerdown', e => {
+  if (e.target !== el.page && e.target !== el.bg) return;
+  if (!current) return toast('load a signature or stamp image first', true);
+  const r = el.page.getBoundingClientRect(), s = slotOf(current);
+  const p = { asset: current, page: pageIndex, cx: (e.clientX - r.left) / scale,
+              cy: (e.clientY - r.top) / scale, width_pt: s.default_width_pt, angle: 0 };
+  placements.push(p);
+  select(p);
+});
+
+el.page.addEventListener('wheel', e => {
+  if (!selected) return;
+  e.preventDefault();
+  selected.width_pt = Math.max(8, Math.min(2000, selected.width_pt * (1 - e.deltaY * 0.002)));
+  render();
+}, { passive: false });
+
+el.size.addEventListener('input', () => { if (selected) { selected.width_pt = +el.size.value; render(); } });
+el.angle.addEventListener('input', () => { if (selected) { selected.angle = +el.angle.value; render(); } });
+$('#pdffile').addEventListener('change', e => upload('pdf', e.target.files[0]));
+$('#scan').addEventListener('change', e => $('#scanbox').classList.toggle('on', e.target.checked));
+$('#strength').addEventListener('input', e => $('#slab').textContent = (+e.target.value).toFixed(2));
+$('#skew').addEventListener('input', e => $('#rlab').textContent = (+e.target.value).toFixed(1) + '°');
+
+$('#prev').onclick = () => DOC.pdf && pageIndex > 0 && showPage(pageIndex - 1);
+$('#next').onclick = () => DOC.pdf && pageIndex < DOC.pdf.pages.length - 1 && showPage(pageIndex + 1);
+$('#del').onclick = () => { if (selected) { placements = placements.filter(p => p !== selected); selected = null; render(); } };
+$('#dup').onclick = () => {
+  if (!selected) return;
+  const c = {...selected, cx: selected.cx + 18, cy: selected.cy + 18};
+  placements.push(c); select(c);
+};
+
+function scanOptions() {
+  return {
+    enabled: $('#scan').checked,
+    strength: +$('#strength').value,
+    rotate: +$('#skew').value,
+    grayscale: $('#gray').checked,
+    keep_edges: $('#edges').checked,
+    corner_damage: $('#corner').checked,
+  };
+}
+
+$('#download').onclick = async () => {
+  if (busy || !DOC.pdf) return;
+  busy = true; updateButtons();
+  $('#download').textContent = 'Building…';
+  try {
+    const blob = await api('/api/render', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({placements, scan: scanOptions()}),
+    });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (DOC.pdf.name || 'document.pdf').replace(/\.pdf$/i, '') + '-signed.pdf';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+    toast('downloaded ' + a.download);
+  } catch (e) { toast('render failed — ' + e.message, true); }
+  finally { busy = false; $('#download').textContent = 'Download signed PDF'; updateButtons(); }
+};
+
+$('#save').onclick = () => finish('/api/save', placements, 'Saved — back to the terminal.');
+$('#quit').onclick = () => finish('/api/quit', null, 'Stopped. You can close this tab.');
+
+async function finish(url, body, msg) {
+  await fetch(url, {method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(body || [])});
+  document.body.innerHTML = `<div style="margin:auto;padding:40px;font-size:15px">${msg}</div>`;
+}
+
+window.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  const step = e.shiftKey ? 10 : 1, rot = e.shiftKey ? 5 : 1;
+  const map = {
+    ArrowLeft: () => nudge(-step, 0), ArrowRight: () => nudge(step, 0),
+    ArrowUp: () => nudge(0, -step), ArrowDown: () => nudge(0, step),
+    '[': () => rotate(rot), ']': () => rotate(-rot),
+    '{': () => rotate(5), '}': () => rotate(-5),
+    Backspace: () => $('#del').click(), Delete: () => $('#del').click(),
+    Enter: () => $('#download').click(),
+    Tab: () => { const n = loadedSlots().map(s => s.name);
+                 if (n.length) setAsset(n[(n.indexOf(current) + 1) % n.length]); },
+    PageDown: () => $('#next').click(), PageUp: () => $('#prev').click(),
+  };
+  if (map[e.key]) { e.preventDefault(); map[e.key](); }
+});
+function nudge(dx, dy) { if (selected) { selected.cx += dx; selected.cy += dy; render(); } }
+function rotate(d) { if (selected) { selected.angle += d; render(); } }
+window.addEventListener('resize', () => { if (DOC && DOC.pdf) showPage(pageIndex); });
+// placements live in the tab only — don't lose them to a stray reload
+window.addEventListener('beforeunload', e => { if (placements.length) { e.preventDefault(); e.returnValue = ''; } });
+
+boot().catch(e => toast('failed to start: ' + e.message, true));
+</script>
+</body>
+</html>

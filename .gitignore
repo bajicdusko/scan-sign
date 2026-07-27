@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.playwright-mcp/
+.fixtures/
+*-signed.pdf
+*.egg-info/
+dist/
+build/

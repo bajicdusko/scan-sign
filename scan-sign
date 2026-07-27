@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# scan-sign launcher: uses the project venv.
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "$DIR/.venv/bin/python" -m scan_sign "$@"
