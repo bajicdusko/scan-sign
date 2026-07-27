@@ -33,4 +33,4 @@ build-backend = "setuptools.build_meta"
 packages = ["scan_sign", "scan_sign.webpicker"]
 
 [tool.setuptools.package-data]
-"scan_sign.webpicker" = ["index.html"]
+"scan_sign.webpicker" = ["index.html", "landing.html"]
