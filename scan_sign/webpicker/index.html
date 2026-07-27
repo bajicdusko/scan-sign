@@ -34,6 +34,8 @@
 
   --shadow-md: 0 0 0 1px #595d6c, 0 6px 18px rgba(0,0,0,.55);
   --shadow-lg: 0 0 0 1px #9397ab, 0 16px 40px rgba(0,0,0,.65);
+
+  --topbar-h: 61px;
 }
 *, *::before, *::after { box-sizing: border-box; }
 [hidden] { display: none !important; }   /* .btn/.drop set display, which outranks the UA rule */
@@ -41,7 +43,7 @@ body { margin:0; background:var(--color-bg); color:var(--color-text);
        font:400 15px/1.55 var(--font-body); height:100vh; overflow:hidden; }
 h1,h2,h3,h4 { font-family:var(--font-heading); font-weight:500; line-height:1.12;
               letter-spacing:-.015em; margin:0 0 var(--space-2); }
-h3 { font-size:22px; }
+h3 { font-size:19px; }
 p { margin:0 0 var(--space-3); }
 .text-muted { color:color-mix(in srgb, var(--color-text) 55%, transparent); }
 :focus { outline:none; }
@@ -65,9 +67,9 @@ p { margin:0 0 var(--space-3); }
 .btn-ghost:hover:not(:disabled) { background:color-mix(in srgb, var(--color-accent) 10%, transparent); }
 .btn-block { width:100%; }
 
-/* ── shell ───────────────────────────────────────────────────────────────── */
+/* ── shell: steps │ controls │ document ──────────────────────────────────── */
 .topbar { display:flex; align-items:center; gap:16px; padding:18px 26px;
-          border-bottom:1px solid var(--color-divider); }
+          border-bottom:1px solid var(--color-divider); height:var(--topbar-h); }
 .brand { font-family:var(--font-heading); font-weight:600; font-size:18px; letter-spacing:-.01em; }
 .brand i { font-style:normal; color:var(--color-accent); }
 .host { font-size:11px; color:color-mix(in srgb, var(--color-text) 42%, transparent); }
@@ -75,14 +77,74 @@ p { margin:0 0 var(--space-3); }
              color:var(--color-accent-300); background:var(--color-accent-900);
              border:1px solid var(--color-accent-800); padding:5px 10px; border-radius:999px; }
 
-.shell { display:grid; grid-template-columns:252px 1fr; height:calc(100vh - 61px); }
-.rail { padding:26px 24px; border-right:1px solid var(--color-divider);
+.shell { display:grid; grid-template-columns:230px 340px minmax(0, 1fr);
+         height:calc(100vh - var(--topbar-h)); }
+
+/* column 1 — the steps */
+.rail { padding:22px 20px; border-right:1px solid var(--color-divider);
         overflow-y:auto; display:flex; flex-direction:column; }
-.pane { min-width:0; min-height:0; display:flex; }
-.stepbody { flex:1; min-width:0; min-height:0; padding:26px 30px 22px;
-            display:none; flex-direction:column; overflow:auto; }
-.stepbody.on { display:flex; }
-.lede { font-size:13.5px; margin:0 0 20px; max-width:60ch; }
+
+/* column 2 — the controls for the step you are on */
+.panel { min-width:0; min-height:0; display:flex; flex-direction:column;
+         border-right:1px solid var(--color-divider); }
+.panelbody { flex:1; min-height:0; display:none; flex-direction:column; }
+.panelbody.on { display:flex; }
+.panel-scroll { flex:1; min-height:0; overflow-y:auto; padding:22px 20px 16px;
+                display:flex; flex-direction:column; gap:15px; }
+.panel-foot { display:flex; align-items:center; gap:8px; flex:none;
+              padding:13px 20px; border-top:1px solid var(--color-divider); }
+.panel-foot .right { margin-left:auto; display:flex; gap:8px; }
+.lede { font-size:13px; margin:0; }
+.panel-scroll > h3 { margin:0; }
+.sect { font-size:11px; letter-spacing:.08em; text-transform:uppercase; font-weight:600;
+        color:color-mix(in srgb, var(--color-text) 45%, transparent);
+        padding-top:4px; border-top:1px solid var(--color-divider); }
+
+/* column 3 — the document itself, the main stage */
+.docarea { min-width:0; min-height:0; display:flex; flex-direction:column;
+           background:radial-gradient(120% 80% at 50% -10%,
+                      color-mix(in srgb, var(--color-accent) 5%, transparent), transparent 60%); }
+.stage-top { flex:none; display:flex; align-items:center; gap:10px; padding:11px 20px;
+             border-bottom:1px solid var(--color-divider); font-size:12.5px;
+             color:color-mix(in srgb, var(--color-text) 62%, transparent); }
+.stage-top b { color:var(--color-text); font-weight:500; overflow:hidden;
+               text-overflow:ellipsis; white-space:nowrap; max-width:46ch; }
+.stage-mode { margin-left:auto; display:inline-flex; align-items:center; gap:6px; font-size:11.5px;
+              color:var(--color-accent-300); background:var(--color-accent-900);
+              border:1px solid var(--color-accent-800); padding:4px 10px; border-radius:999px; }
+/* overflow:hidden, not auto: a mark dragged past the paper edge would otherwise pop a
+   scrollbar, shrink the stage, and rescale the page under the pointer mid-drag. */
+#stage { flex:1; min-height:0; overflow:hidden; display:flex;
+         align-items:center; justify-content:center; padding:18px; }
+#empty { margin:auto; text-align:center; font-size:13.5px; max-width:34ch;
+         color:color-mix(in srgb, var(--color-text) 50%, transparent); }
+#empty svg { display:block; margin:0 auto 12px; opacity:.5; }
+.stage-bar { flex:none; display:flex; align-items:center; justify-content:center; gap:14px;
+             padding:9px 20px; border-top:1px solid var(--color-divider); }
+.stage-hint { font-size:11.5px; color:color-mix(in srgb, var(--color-text) 45%, transparent); }
+
+/* touch-action:manipulation, not none: the stacked layout scrolls the document itself, and
+   none would swallow every touch that started on the page. The marks keep it (see .ov). */
+#page { position:relative; background:#fbfbf7; border-radius:2px; margin:auto;
+        box-shadow:0 10px 40px rgba(0,0,0,.5); user-select:none;
+        touch-action:manipulation; flex:none; }
+#page img.bg { display:block; width:100%; height:100%; pointer-events:none; border-radius:2px; }
+#page.scanned img.bg { filter:contrast(1.06) brightness(.985) sepia(.10) saturate(.9); }
+#page.placing { cursor:crosshair; }
+.vig { position:absolute; inset:0; pointer-events:none; display:none; border-radius:2px; }
+#page.scanned .vig { display:block; }
+#vig1 { background:radial-gradient(120% 130% at 12% 8%, transparent 62%, rgba(60,50,30,.28));
+        mix-blend-mode:multiply; }
+#vig2 { inset:auto 0 0 auto; width:90px; height:90px;
+        background:radial-gradient(circle at bottom right, rgba(35,24,12,.5), transparent 70%); }
+.ov { position:absolute; transform-origin:center center; cursor:move; touch-action:none; }
+.ov img { width:100%; height:100%; display:block; pointer-events:none; -webkit-user-drag:none; }
+.ov.locked { pointer-events:none; }
+.ov.sel { outline:2px dashed var(--color-accent); outline-offset:3px; border-radius:1px; }
+.handle { position:absolute; right:-6px; bottom:-6px; width:13px; height:13px;
+          background:var(--color-accent); border-radius:3px; box-shadow:0 0 0 2px var(--color-bg);
+          cursor:nwse-resize; display:none; }
+.ov.sel .handle { display:block; }
 
 /* ── stepper ─────────────────────────────────────────────────────────────── */
 .step { display:flex; align-items:center; gap:11px; padding:9px 0; width:100%;
@@ -94,105 +156,50 @@ p { margin:0 0 var(--space-3); }
 .step.done .step-dot { background:var(--color-accent); border-color:var(--color-accent); color:#0f111c; }
 .step.active .step-dot { border-color:var(--color-accent); color:var(--color-accent);
                          box-shadow:0 0 0 4px var(--color-accent-900); }
-.step-txt { font-size:14px; color:color-mix(in srgb, var(--color-text) 50%, transparent); }
+.step-txt { font-size:13.5px; color:color-mix(in srgb, var(--color-text) 50%, transparent); }
 .step.active .step-txt { color:var(--color-text); font-weight:500; }
 .step.done .step-txt { color:var(--color-text); }
-.step-line { width:1.5px; height:14px; margin-left:12px; background:var(--color-divider); }
+.step-line { width:1.5px; height:13px; margin-left:12px; background:var(--color-divider); }
 
-.railcard { margin-top:26px; padding:14px; border-radius:10px; background:var(--color-surface);
-            font-size:12px; line-height:1.6; color:color-mix(in srgb, var(--color-text) 55%, transparent); }
-.railcard b { color:var(--color-text); font-weight:500; display:block; word-break:break-all; }
 .railnote { margin-top:auto; padding-top:16px; font-size:11px; line-height:1.65;
             color:color-mix(in srgb, var(--color-text) 45%, transparent); }
 .railnote code { word-break:break-all; }
-#whoami { display:none; align-items:center; gap:8px; margin-bottom:18px;
-          padding-bottom:16px; border-bottom:1px solid var(--color-divider); }
+#whoami { display:none; align-items:center; gap:8px; margin-bottom:16px;
+          padding-bottom:14px; border-bottom:1px solid var(--color-divider); }
 #whoami.on { display:flex; }
 #whoami .who { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
                font-size:13px; font-weight:500; }
 #whoami button { font-size:11px; padding:4px 9px; }
 
-/* ── drop zones ──────────────────────────────────────────────────────────── */
-.drop { border:1.5px dashed var(--color-divider); border-radius:10px;
+/* ── drop zones (they live in the controls column, so they stay compact) ─── */
+.drop { position:relative; border:1.5px dashed var(--color-divider); border-radius:10px;
         background:color-mix(in srgb, var(--color-text) 3%, transparent);
-        flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
-        gap:14px; cursor:pointer; text-align:center; padding:34px; min-height:200px; max-height:460px; }
+        flex:none; display:flex; flex-direction:column; align-items:center; justify-content:center;
+        gap:11px; cursor:pointer; text-align:center; padding:20px 16px; min-height:150px; }
 .drop:hover, .drop.over { border-color:var(--color-accent);
                           background:color-mix(in srgb, var(--color-accent) 7%, transparent); }
-.drop-title { font-size:15px; font-weight:500; color:var(--color-text); }
-.drop-sub { font-size:12.5px; margin-top:3px; }
-.drop input[type=file] { display:none; }
-.drop .preview { width:170px; height:66px; background:#fbfbf7; border-radius:6px; padding:5px;
-                 display:grid; place-items:center; }
-.drop .preview img { max-width:100%; max-height:100%; object-fit:contain; }
-.drop .loaded-name { font-size:12.5px; color:var(--color-accent-300); word-break:break-all;
-                     max-width:34ch; }
+/* Focus lands on the input, but the ring belongs on the zone you can see. */
+.drop:focus-within { outline:2px solid var(--color-accent); outline-offset:2px; }
+.drop-title { font-size:14px; font-weight:500; color:var(--color-text); }
+.drop-sub { font-size:12px; margin-top:3px; }
+/* Hidden, not display:none — display:none would take it out of the tab order and leave the
+   whole file picker mouse-only. */
+.drop input[type=file] { position:absolute; width:1px; height:1px; opacity:0; }
+/* One box for either asset: a wide signature and a square stamp both have to sit inside it. */
+.drop .preview { width:150px; height:66px; background:#fbfbf7; border-radius:6px; padding:5px;
+                 display:flex; align-items:center; justify-content:center; overflow:hidden; }
+.drop .preview img { width:100%; height:100%; object-fit:contain; }
+.drop .loaded-name { font-size:12px; color:var(--color-accent-300); word-break:break-all;
+                     max-width:30ch; }
 
-.notice { display:flex; align-items:flex-start; gap:7px; margin-top:14px; font-size:12px;
+.notice { display:flex; align-items:flex-start; gap:7px; font-size:12px;
           line-height:1.5; color:var(--color-accent-300); }
 .notice svg { flex:none; margin-top:1px; }
 
-/* the loaded PDF, shown on step 1 so you can check it is the right file */
-.docprev { background:#fbfbf7; border-radius:3px; padding:5px; max-height:300px;
-           box-shadow:0 10px 40px rgba(0,0,0,.5); }
-.docprev img { max-height:290px; max-width:100%; object-fit:contain; border-radius:1px; }
-
-/* per-asset background removal, on the step that owns the asset */
-.assetopts { display:flex; flex-direction:column; gap:14px; margin-top:16px; }
 .cut-scale { display:flex; justify-content:space-between; font-size:11px; margin-top:4px;
              color:color-mix(in srgb, var(--color-text) 45%, transparent); }
 
-.footer { display:flex; align-items:center; gap:10px; margin-top:22px; padding-top:20px;
-          border-top:1px solid var(--color-divider); }
-.footer .right { margin-left:auto; display:flex; gap:10px; }
-
-/* ── placement stage ─────────────────────────────────────────────────────── */
-.place { flex:1; min-height:0; display:flex; gap:24px; align-items:stretch; }
-#stagewrap { flex:1; min-width:0; display:flex; flex-direction:column; gap:12px; align-items:center; }
-#stage { flex:1; min-height:0; width:100%; overflow:auto; display:flex;
-         align-items:flex-start; justify-content:center; }
-#empty { margin:auto; text-align:center; font-size:13px;
-         color:color-mix(in srgb, var(--color-text) 55%, transparent); }
-#page { position:relative; background:#fbfbf7; border-radius:2px;
-        box-shadow:0 10px 40px rgba(0,0,0,.5); user-select:none; touch-action:none; }
-#page img.bg { display:block; width:100%; height:100%; pointer-events:none; border-radius:2px; }
-#page.scanned img.bg { filter:contrast(1.06) brightness(.985) sepia(.10) saturate(.9); }
-.vig { position:absolute; inset:0; pointer-events:none; display:none; border-radius:2px; }
-#page.scanned .vig { display:block; }
-#vig1 { background:radial-gradient(120% 130% at 12% 8%, transparent 62%, rgba(60,50,30,.28));
-        mix-blend-mode:multiply; }
-#vig2 { inset:auto 0 0 auto; width:90px; height:90px;
-        background:radial-gradient(circle at bottom right, rgba(35,24,12,.5), transparent 70%); }
-.ov { position:absolute; transform-origin:center center; cursor:move; }
-.ov img { width:100%; height:100%; display:block; pointer-events:none; -webkit-user-drag:none; }
-.ov.sel { outline:2px dashed var(--color-accent); outline-offset:3px; border-radius:1px; }
-.handle { position:absolute; right:-6px; bottom:-6px; width:13px; height:13px;
-          background:var(--color-accent); border-radius:3px; box-shadow:0 0 0 2px var(--color-bg);
-          cursor:nwse-resize; display:none; }
-.ov.sel .handle { display:block; }
-
-.pagenav { display:inline-flex; align-items:center; gap:2px; background:var(--color-surface);
-           border:1px solid var(--color-divider); border-radius:999px; padding:4px; flex:none; }
-.pagenav button { width:30px; height:30px; border:0; background:transparent; color:var(--color-text);
-                  border-radius:50%; cursor:pointer; display:grid; place-items:center; }
-.pagenav button:hover:not(:disabled) { background:color-mix(in srgb, var(--color-text) 8%, transparent); }
-.pagenav button:disabled { opacity:.35; cursor:default; }
-.pagenav .n { padding:0 10px; font-size:12.5px; font-variant-numeric:tabular-nums;
-              color:color-mix(in srgb, var(--color-text) 65%, transparent); }
-
-/* ── placement controls ──────────────────────────────────────────────────── */
-.ctls { width:292px; flex:none; display:flex; flex-direction:column; gap:15px; overflow-y:auto;
-        padding-right:2px; }
-.seg { display:inline-flex; overflow:hidden; border:1px solid var(--color-divider);
-       border-radius:var(--radius-md); align-self:flex-start; }
-.seg-opt { display:inline-flex; align-items:center; gap:6px; padding:7px 12px;
-           font-size:13px; cursor:pointer; }
-.seg-opt input { position:absolute; opacity:0; width:0; height:0; pointer-events:none; }
-.seg-opt + .seg-opt { border-left:1px solid var(--color-divider); }
-.seg-opt:has(input:checked) { color:var(--color-accent); box-shadow:inset 0 0 0 1px var(--color-accent); }
-.seg-opt:has(input:disabled) { opacity:.4; cursor:not-allowed; }
-.seg-opt:has(input:focus-visible) { outline:2px solid var(--color-accent); outline-offset:-2px; }
-
+/* ── controls ────────────────────────────────────────────────────────────── */
 .field > label { display:block; font-size:12px; margin-bottom:5px;
                  color:color-mix(in srgb, var(--color-text) 70%, transparent); }
 input[type=range] { width:100%; accent-color:var(--color-accent); }
@@ -207,64 +214,58 @@ input[type=range]:disabled { opacity:.4; }
 .swrow input:checked + .toggle::after, .ctl-row input:checked + .toggle::after { left:18px; }
 .swrow input:focus-visible + .toggle, .ctl-row input:focus-visible + .toggle {
   outline:2px solid var(--color-accent); outline-offset:2px; }
-.swrow { position:relative; display:flex; align-items:center; gap:12px; padding:13px 14px;
+.swrow { position:relative; display:flex; align-items:center; gap:12px; padding:12px 13px;
          border-radius:10px; background:var(--color-surface); cursor:pointer;
          border:1px solid transparent; }
 .swrow.on { background:var(--color-accent-900); border-color:var(--color-accent-800); }
-.swrow .t1 { font-size:13.5px; font-weight:500; }
+.swrow .t1 { font-size:13px; font-weight:500; }
 .swrow .t2 { font-size:11.5px; color:color-mix(in srgb, var(--color-text) 50%, transparent); }
 .swrow.on .t2 { color:var(--color-accent-300); }
-
-.adv { border-top:1px solid var(--color-divider); }
-.adv-hd { display:flex; align-items:center; gap:8px; padding:12px 0; font-size:13px;
-          font-weight:500; color:var(--color-text); cursor:pointer; user-select:none; }
-.adv-hd .chev { transition:.15s; }
-.adv-hd.open .chev { transform:rotate(90deg); }
-.adv-body { display:none; flex-direction:column; gap:15px; padding:2px 0 8px; }
-.adv-hd.open + .adv-body { display:flex; }
 .ctl-row { position:relative; display:flex; align-items:center; justify-content:space-between;
            gap:10px; font-size:12.5px; cursor:pointer; }
-.ctl-row input[type=range] { width:148px; }
-#info { font-size:11.5px; line-height:1.6; white-space:pre-line; min-height:34px;
-        font-variant-numeric:tabular-nums; color:color-mix(in srgb, var(--color-text) 55%, transparent); }
+.ctl-row input[type=range] { width:140px; }
 .hint { font-size:11.5px; line-height:1.5; color:color-mix(in srgb, var(--color-text) 50%, transparent); }
+.info { font-size:11.5px; line-height:1.6; white-space:pre-line;
+        font-variant-numeric:tabular-nums; color:color-mix(in srgb, var(--color-text) 55%, transparent); }
+.rowbtns { display:flex; gap:8px; }
+.rowbtns .btn { flex:1; font-size:12px; padding:6px; }
+
+/* the marks placed for this step's asset — click one to select it on the page */
+.marks { display:flex; flex-direction:column; gap:5px; }
+.mark { display:flex; align-items:center; gap:8px; padding:7px 9px; border-radius:8px;
+        font-size:12px; cursor:pointer; border:1px solid var(--color-divider);
+        background:transparent; color:inherit; text-align:left; font-family:inherit; }
+.mark:hover { background:color-mix(in srgb, var(--color-text) 6%, transparent); }
+.mark.on { border-color:var(--color-accent); background:var(--color-accent-900); }
+.mark .mk-n { margin-left:auto; font-variant-numeric:tabular-nums;
+              color:color-mix(in srgb, var(--color-text) 50%, transparent); }
+
+.pagenav { display:inline-flex; align-items:center; gap:2px; background:var(--color-surface);
+           border:1px solid var(--color-divider); border-radius:999px; padding:4px; flex:none; }
+.pagenav button { width:30px; height:30px; border:0; background:transparent; color:var(--color-text);
+                  border-radius:50%; cursor:pointer; display:grid; place-items:center; }
+.pagenav button:hover:not(:disabled) { background:color-mix(in srgb, var(--color-text) 8%, transparent); }
+.pagenav button:disabled { opacity:.35; cursor:default; }
+.pagenav .n { padding:0 10px; font-size:12.5px; font-variant-numeric:tabular-nums;
+              color:color-mix(in srgb, var(--color-text) 65%, transparent); }
 
 /* ── finish step ─────────────────────────────────────────────────────────── */
-.finish { position:relative; flex:1; min-height:0; overflow:hidden; border-radius:var(--radius-lg);
-          background:radial-gradient(120% 90% at 50% 0%,
-                     color-mix(in srgb, var(--color-accent) 6%, transparent), transparent 60%); }
-.finish-bg { position:absolute; inset:0; filter:blur(2px); opacity:.3; pointer-events:none;
-             display:flex; align-items:center; justify-content:center; padding:26px; }
-.finish-bg img { max-width:100%; max-height:100%; object-fit:contain; border-radius:2px;
-                 box-shadow:0 10px 40px rgba(0,0,0,.5); }
-.finish-veil { position:absolute; inset:0;
-               background:color-mix(in srgb, var(--color-neutral-900) 55%, transparent); }
-.finish-fg { position:absolute; inset:0; display:grid; place-items:center; padding:22px;
-             overflow:auto; }
+.summary { display:flex; flex-direction:column; gap:9px; padding:14px; border-radius:10px;
+           background:var(--color-surface); font-size:12.5px; }
+.sum-row { display:flex; align-items:center; gap:9px;
+           color:color-mix(in srgb, var(--color-text) 70%, transparent); }
+.sum-row b { margin-left:auto; color:var(--color-text); font-weight:500; text-align:right;
+             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:20ch; }
 
-.dialog { width:min(420px,100%); display:flex; flex-direction:column; gap:var(--space-3);
-          padding:var(--space-6); border-radius:var(--radius-lg); background:var(--color-surface);
-          box-shadow:var(--shadow-lg); align-items:center; text-align:center; }
-.dialog-icon { width:56px; height:56px; border-radius:50%; background:var(--color-accent-900);
-               display:grid; place-items:center; }
-.dialog-title { font-family:var(--font-heading); font-weight:500; font-size:20px; }
-.dialog p { font-size:13px; text-align:left; margin:0; line-height:1.65;
-            color:color-mix(in srgb, var(--color-text) 82%, transparent); }
-.dialog p b { color:var(--color-text); font-weight:600; }
-.dialog .fine { font-size:11px; color:color-mix(in srgb, var(--color-text) 50%, transparent); }
-.dialog .input { width:100%; min-height:36px; padding:6px 10px; font:inherit; font-size:14px;
-                 color:var(--color-text); caret-color:var(--color-accent);
-                 background:var(--color-bg); border:1px solid var(--color-divider);
-                 border-radius:var(--radius-md); }
-.dialog .input:focus-visible { border-color:var(--color-accent); outline-offset:0; }
-
-.bmc { width:100%; padding:12px; font-family:var(--font-heading); font-weight:700; font-size:14px;
+.bmc { width:100%; padding:11px; font-family:var(--font-heading); font-weight:700; font-size:13.5px;
        background:#ffdd00; border:1px solid #ffdd00; border-radius:var(--radius-md); color:#141414;
        cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:9px; }
 .bmc:hover { background:#ffe74d; }
 .bmc .cup { font-size:17px; line-height:1; }
 .bmc .lines { display:flex; flex-direction:column; align-items:flex-start; line-height:1.2; }
-.bmc .lines small { font-weight:500; font-size:11px; opacity:.72; }
+.bmc .lines small { font-weight:500; font-size:10.5px; opacity:.72; }
+.free { font-size:11.5px; line-height:1.55; text-align:center;
+        color:color-mix(in srgb, var(--color-text) 45%, transparent); }
 
 /* ── overlays ────────────────────────────────────────────────────────────── */
 .backdrop { position:fixed; inset:0; z-index:30; display:none; place-items:center;
@@ -272,7 +273,17 @@ input[type=range]:disabled { opacity:.4; }
             background:color-mix(in srgb, var(--color-neutral-900) 78%, transparent); }
 .backdrop.on { display:grid; }
 #gate { background:var(--color-bg); }
-#gate .dialog { text-align:left; align-items:stretch; }
+.dialog { width:min(420px,100%); display:flex; flex-direction:column; gap:var(--space-3);
+          padding:var(--space-6); border-radius:var(--radius-lg); background:var(--color-surface);
+          box-shadow:var(--shadow-lg); text-align:left; }
+.dialog-title { font-family:var(--font-heading); font-weight:500; font-size:20px; }
+.dialog p { font-size:13px; margin:0; line-height:1.65;
+            color:color-mix(in srgb, var(--color-text) 82%, transparent); }
+.dialog .input { width:100%; min-height:36px; padding:6px 10px; font:inherit; font-size:14px;
+                 color:var(--color-text); caret-color:var(--color-accent);
+                 background:var(--color-bg); border:1px solid var(--color-divider);
+                 border-radius:var(--radius-md); }
+.dialog .input:focus-visible { border-color:var(--color-accent); outline-offset:0; }
 
 #toast { position:fixed; left:50%; top:14px; transform:translateX(-50%); z-index:40;
          background:var(--color-surface); border:1px solid var(--color-divider);
@@ -280,13 +291,18 @@ input[type=range]:disabled { opacity:.4; }
          font-size:13px; box-shadow:var(--shadow-md); }
 #toast.err { border-color:#c0453f; background:#3a2626; }
 
-@media (max-width: 860px) {
+@media (max-width: 1080px) {
   body { overflow:auto; height:auto; }
+  /* the brand and the privacy pill are both unbreakable — let them stack instead of spill */
+  .topbar { height:auto; min-height:var(--topbar-h); flex-wrap:wrap; gap:8px 16px; }
   .shell { grid-template-columns:1fr; height:auto; }
-  .rail { border-right:0; border-bottom:1px solid var(--color-divider); }
-  .place { flex-direction:column; }
-  .ctls { width:100%; }
-  #stage { min-height:320px; }
+  .rail, .panel { border-right:0; border-bottom:1px solid var(--color-divider); }
+  .rail nav { display:flex; flex-wrap:wrap; gap:4px 14px; }
+  .step { width:auto; }
+  .step-line { display:none; }
+  .panelbody { min-height:0; }
+  .docarea { min-height:70vh; }
+  #stage { min-height:60vh; }
 }
 </style>
 </head>
@@ -302,6 +318,8 @@ input[type=range]:disabled { opacity:.4; }
 </header>
 
 <div class="shell">
+
+  <!-- ── column 1 · the steps ──────────────────────────────────────────── -->
   <aside class="rail">
     <div id="whoami">
       <span class="who" id="whoname"></span>
@@ -311,16 +329,14 @@ input[type=range]:disabled { opacity:.4; }
     <nav id="stepper">
       <button class="step" data-step="1"><span class="step-dot">1</span><span class="step-txt">Add your document</span></button>
       <div class="step-line"></div>
-      <button class="step" data-step="2"><span class="step-dot">2</span><span class="step-txt">Upload your signature</span></button>
+      <button class="step" data-step="2"><span class="step-dot">2</span><span class="step-txt">Sign it</span></button>
       <div class="step-line"></div>
       <button class="step" data-step="3"><span class="step-dot">3</span><span class="step-txt">Add a stamp</span></button>
       <div class="step-line"></div>
-      <button class="step" data-step="4"><span class="step-dot">4</span><span class="step-txt">Place on the page</span></button>
+      <button class="step" data-step="4"><span class="step-dot">4</span><span class="step-txt">Make it look scanned</span></button>
       <div class="step-line"></div>
-      <button class="step" data-step="5"><span class="step-dot">5</span><span class="step-txt">Save your signed PDF</span></button>
+      <button class="step" data-step="5"><span class="step-dot">5</span><span class="step-txt">Download</span></button>
     </nav>
-
-    <div class="railcard" id="raildoc" hidden>Your document<b id="raildocname"></b></div>
 
     <div class="railnote" id="hosted-note" hidden>
       Files live in this session only, in memory, and are dropped when it ends or goes idle.
@@ -329,78 +345,101 @@ input[type=range]:disabled { opacity:.4; }
     </div>
   </aside>
 
-  <main class="pane">
+  <!-- ── column 2 · controls for the step you are on ───────────────────── -->
+  <section class="panel">
 
-    <!-- ── 1 · document ────────────────────────────────────────────────── -->
-    <section class="stepbody" data-body="1">
-      <h3>Add the document you want to sign</h3>
-      <p class="lede text-muted" id="pdf-lede">Choose a PDF from your device. It never gets uploaded
-        anywhere — the whole thing happens right here in your browser.</p>
-      <label class="drop" id="drop-pdf">
-        <div class="docprev" id="pdf-preview" hidden><img id="pdfthumb" alt="First page of the loaded PDF"></div>
-        <svg id="icon-pdf" width="42" height="42" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M240,136v64a16,16,0,0,1-16,16H32a16,16,0,0,1-16-16V136a16,16,0,0,1,16-16H80a8,8,0,0,1,0,16H32v64H224V136H176a8,8,0,0,1,0-16h48A16,16,0,0,1,240,136ZM85.66,77.66,120,43.31V128a8,8,0,0,0,16,0V43.31l34.34,34.35a8,8,0,0,0,11.32-11.32l-48-48a8,8,0,0,0-11.32,0l-48,48A8,8,0,0,0,85.66,77.66Z"></path></svg>
-        <div>
-          <div class="drop-title">Drag a PDF here</div>
-          <div class="drop-sub text-muted" id="pdf-sub">or click to choose a file</div>
+    <!-- 1 · document -->
+    <div class="panelbody" data-body="1">
+      <div class="panel-scroll">
+        <h3>Add your document</h3>
+        <p class="lede text-muted" id="pdf-lede">Choose the PDF you need to sign. It opens at full size
+          next to these controls, so you can check you picked the right file.</p>
+        <label class="drop" id="drop-pdf">
+          <svg id="icon-pdf" width="36" height="36" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M240,136v64a16,16,0,0,1-16,16H32a16,16,0,0,1-16-16V136a16,16,0,0,1,16-16H80a8,8,0,0,1,0,16H32v64H224V136H176a8,8,0,0,1,0-16h48A16,16,0,0,1,240,136ZM85.66,77.66,120,43.31V128a8,8,0,0,0,16,0V43.31l34.34,34.35a8,8,0,0,0,11.32-11.32l-48-48a8,8,0,0,0-11.32,0l-48,48A8,8,0,0,0,85.66,77.66Z"></path></svg>
+          <div>
+            <div class="drop-title">Drag a PDF here</div>
+            <div class="drop-sub text-muted" id="pdf-sub">or click to choose a file</div>
+          </div>
+          <span class="btn btn-secondary" id="pdf-choose" style="pointer-events:none">Choose a PDF</span>
+          <div class="loaded-name" id="pdf-loaded" hidden></div>
+          <input type="file" id="pdffile" accept="application/pdf,.pdf">
+        </label>
+        <div class="notice" id="pdf-ok" hidden>
+          <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M232,128a104,104,0,1,1-104-104A104.11,104.11,0,0,1,232,128Zm-40.35-30.34-58.34,58.35L100.34,123a8,8,0,0,0-11.32,11.31l38.35,38.35a8,8,0,0,0,11.31,0l64-64a8,8,0,0,0-11.32-11.32Z"></path></svg>
+          <span>Loaded — flip through it in the document view to make sure it is the one.</span>
         </div>
-        <span class="btn btn-secondary" id="pdf-choose" style="pointer-events:none">Choose a PDF</span>
-        <div class="loaded-name" id="pdf-loaded" hidden></div>
-        <input type="file" id="pdffile" accept="application/pdf,.pdf">
-      </label>
-      <!-- Outside the label: a button inside it would re-open the file picker. -->
-      <div class="pagenav" id="pdfnav" hidden style="align-self:center;margin-top:14px">
-        <button id="pdfprev" title="Previous page">
-          <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M165.66,202.34a8,8,0,0,1-11.32,11.32l-80-80a8,8,0,0,1,0-11.32l80-80a8,8,0,0,1,11.32,11.32L91.31,128Z"></path></svg>
-        </button>
-        <span class="n" id="pdfpageno">– / –</span>
-        <button id="pdfnext" title="Next page">
-          <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M90.34,53.66a8,8,0,0,1,11.32-11.32l80,80a8,8,0,0,1,0,11.32l-80,80a8,8,0,0,1-11.32-11.32L164.69,128Z"></path></svg>
-        </button>
       </div>
-      <div class="footer">
+      <div class="panel-foot">
         <div class="right">
           <button class="btn btn-primary" data-next="2" disabled>Continue
             <svg width="15" height="15" viewBox="0 0 256 256" fill="currentColor"><path d="M90.34,53.66a8,8,0,0,1,11.32-11.32l80,80a8,8,0,0,1,0,11.32l-80,80a8,8,0,0,1-11.32-11.32L164.69,128Z"></path></svg>
           </button>
         </div>
       </div>
-    </section>
+    </div>
 
-    <!-- ── 2 · signature ───────────────────────────────────────────────── -->
-    <section class="stepbody" data-body="2">
-      <h3>Upload your signature</h3>
-      <p class="lede text-muted">A photo or scan of your signature on paper works fine. We remove the
-        paper background for you, so only the ink lands on the page.</p>
-      <label class="drop" id="drop-signature">
-        <div class="preview" id="prev-signature" hidden><img id="previmg-signature" alt=""></div>
-        <svg id="icon-signature" width="42" height="42" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M216,64H176V56a24,24,0,0,0-24-24H104A24,24,0,0,0,80,56v8H40A16,16,0,0,0,24,80V192a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V80A16,16,0,0,0,216,64ZM96,56a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96Zm88,112H72a8,8,0,0,1,0-16H184a8,8,0,0,1,0,16Z"></path></svg>
-        <div>
-          <div class="drop-title">Drop a photo of your signature</div>
-          <div class="drop-sub text-muted">PNG or JPG · or click to choose</div>
-        </div>
-        <span class="btn btn-secondary" style="pointer-events:none">Choose an image</span>
-        <div class="loaded-name" id="loaded-signature" hidden></div>
-        <input type="file" accept="image/*" data-slot="signature">
-      </label>
-      <div class="notice" id="notice-signature">
-        <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M232,128a104,104,0,1,1-104-104A104.11,104.11,0,0,1,232,128Zm-40.35-30.34-58.34,58.35L100.34,123a8,8,0,0,0-11.32,11.31l38.35,38.35a8,8,0,0,0,11.31,0l64-64a8,8,0,0,0-11.32-11.32Z"></path></svg>
-        Paper background is removed automatically once the image is in.
-      </div>
-      <div class="assetopts" id="opts-signature" hidden>
-        <label class="swrow">
-          <input type="checkbox" data-bgcut="signature"><span class="toggle"></span>
-          <span>
-            <span class="t1">Remove the paper background</span><br>
-            <span class="t2" data-bgsub="signature">Only the ink is kept</span>
-          </span>
+    <!-- 2 · signature -->
+    <div class="panelbody" data-body="2">
+      <div class="panel-scroll">
+        <h3>Sign it</h3>
+        <p class="lede text-muted">A photo or scan of your signature on paper works fine — the paper
+          behind it is removed for you.</p>
+        <label class="drop" id="drop-signature">
+          <div class="preview" id="prev-signature" hidden><img id="previmg-signature" alt=""></div>
+          <svg id="icon-signature" width="36" height="36" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M216,64H176V56a24,24,0,0,0-24-24H104A24,24,0,0,0,80,56v8H40A16,16,0,0,0,24,80V192a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V80A16,16,0,0,0,216,64ZM96,56a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96Zm88,112H72a8,8,0,0,1,0-16H184a8,8,0,0,1,0,16Z"></path></svg>
+          <div>
+            <div class="drop-title">Drop a photo of your signature</div>
+            <div class="drop-sub text-muted">PNG or JPG · or click to choose</div>
+          </div>
+          <span class="btn btn-secondary" style="pointer-events:none">Choose an image</span>
+          <div class="loaded-name" id="loaded-signature" hidden></div>
+          <input type="file" accept="image/*" data-slot="signature">
         </label>
-        <div class="field" data-tolwrap="signature">
-          <label>How much paper to cut <span class="text-muted" data-tollab="signature"></span></label>
-          <input type="range" data-tol="signature" min="4" max="110" step="2">
-          <div class="cut-scale"><span>keep more</span><span>cut more · for grey or yellowed scans</span></div>
+
+        <div class="notice" data-place="signature" hidden>
+          <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm16-40a8,8,0,0,1-8,8,16,16,0,0,1-16-16V128a8,8,0,0,1,0-16,16,16,0,0,1,16,16v40A8,8,0,0,1,144,176ZM112,84a12,12,0,1,1,12,12A12,12,0,0,1,112,84Z"></path></svg>
+          <span>Click the document to drop your signature, then drag it into place.</span>
+        </div>
+
+        <div data-marks="signature" hidden>
+          <div class="sect" style="margin-bottom:9px">Signatures on the page</div>
+          <div class="marks" data-marklist="signature"></div>
+        </div>
+
+        <div data-sel="signature" hidden style="display:flex;flex-direction:column;gap:13px">
+          <div class="sect">Selected signature</div>
+          <div class="field">
+            <label>Size <span class="text-muted" data-wlab="signature"></span></label>
+            <input type="range" data-size="signature" min="10" max="400" step="1">
+          </div>
+          <div class="field">
+            <label>Rotation <span class="text-muted" data-alab="signature"></span></label>
+            <input type="range" data-angle="signature" min="-45" max="45" step="0.5">
+          </div>
+          <div class="rowbtns">
+            <button class="btn btn-secondary" data-dup="signature">Duplicate</button>
+            <button class="btn btn-secondary" data-del="signature">Delete</button>
+          </div>
+          <div class="info" data-info="signature"></div>
+        </div>
+
+        <div class="assetopts" id="opts-signature" hidden style="display:flex;flex-direction:column;gap:13px">
+          <div class="sect">Signature image</div>
+          <label class="swrow">
+            <input type="checkbox" data-bgcut="signature"><span class="toggle"></span>
+            <span>
+              <span class="t1">Remove the paper background</span><br>
+              <span class="t2" data-bgsub="signature">Only the ink is kept</span>
+            </span>
+          </label>
+          <div class="field" data-tolwrap="signature">
+            <label>How much paper to cut <span class="text-muted" data-tollab="signature"></span></label>
+            <input type="range" data-tol="signature" min="4" max="110" step="2">
+            <div class="cut-scale"><span>keep more</span><span>cut more · for grey scans</span></div>
+          </div>
         </div>
       </div>
-      <div class="footer">
+      <div class="panel-foot">
         <button class="btn btn-secondary" data-next="1">
           <svg width="15" height="15" viewBox="0 0 256 256" fill="currentColor"><path d="M165.66,202.34a8,8,0,0,1-11.32,11.32l-80-80a8,8,0,0,1,0-11.32l80-80a8,8,0,0,1,11.32,11.32L91.31,128Z"></path></svg>Back
         </button>
@@ -410,147 +449,116 @@ input[type=range]:disabled { opacity:.4; }
           </button>
         </div>
       </div>
-    </section>
+    </div>
 
-    <!-- ── 3 · stamp ───────────────────────────────────────────────────── -->
-    <section class="stepbody" data-body="3">
-      <h3>Add a company stamp <span class="text-muted" style="font-weight:400;font-size:15px">— optional</span></h3>
-      <p class="lede text-muted">Got an official stamp or seal? Add a photo of it too.
-        Don’t need one? Just skip this step.</p>
-      <label class="drop" id="drop-stamp">
-        <div class="preview" id="prev-stamp" hidden><img id="previmg-stamp" alt=""></div>
-        <svg id="icon-stamp" width="42" height="42" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M224,176H192.83l-9.6-67.24A24,24,0,0,0,159.47,88H144V64.94a32,32,0,1,0-32,0V88H96.53a24,24,0,0,0-23.76,20.76L63.17,176H32a8,8,0,0,0,0,16H224a8,8,0,0,0,0-16ZM216,208H40a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Z"></path></svg>
-        <div>
-          <div class="drop-title">Drop a photo of your stamp</div>
-          <div class="drop-sub text-muted">PNG or JPG · or click to choose</div>
-        </div>
-        <span class="btn btn-secondary" style="pointer-events:none">Choose an image</span>
-        <div class="loaded-name" id="loaded-stamp" hidden></div>
-        <input type="file" accept="image/*" data-slot="stamp">
-      </label>
-      <div class="assetopts" id="opts-stamp" hidden>
-        <label class="swrow">
-          <input type="checkbox" data-bgcut="stamp"><span class="toggle"></span>
-          <span>
-            <span class="t1">Remove the paper background</span><br>
-            <span class="t2" data-bgsub="stamp">Only the ink is kept</span>
-          </span>
+    <!-- 3 · stamp -->
+    <div class="panelbody" data-body="3">
+      <div class="panel-scroll">
+        <h3>Add a stamp <span class="text-muted" style="font-weight:400;font-size:14px">— optional</span></h3>
+        <p class="lede text-muted">Got an official stamp or seal? Drop it in and place it the same way.
+          Don’t need one? Skip it.</p>
+        <label class="drop" id="drop-stamp">
+          <div class="preview" id="prev-stamp" hidden><img id="previmg-stamp" alt=""></div>
+          <svg id="icon-stamp" width="36" height="36" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M224,176H192.83l-9.6-67.24A24,24,0,0,0,159.47,88H144V64.94a32,32,0,1,0-32,0V88H96.53a24,24,0,0,0-23.76,20.76L63.17,176H32a8,8,0,0,0,0,16H224a8,8,0,0,0,0-16ZM216,208H40a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Z"></path></svg>
+          <div>
+            <div class="drop-title">Drop a photo of your stamp</div>
+            <div class="drop-sub text-muted">PNG or JPG · or click to choose</div>
+          </div>
+          <span class="btn btn-secondary" style="pointer-events:none">Choose an image</span>
+          <div class="loaded-name" id="loaded-stamp" hidden></div>
+          <input type="file" accept="image/*" data-slot="stamp">
         </label>
-        <div class="field" data-tolwrap="stamp">
-          <label>How much paper to cut <span class="text-muted" data-tollab="stamp"></span></label>
-          <input type="range" data-tol="stamp" min="4" max="110" step="2">
-          <div class="cut-scale"><span>keep more</span><span>cut more · for grey or yellowed scans</span></div>
+
+        <div class="notice" data-place="stamp" hidden>
+          <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm16-40a8,8,0,0,1-8,8,16,16,0,0,1-16-16V128a8,8,0,0,1,0-16,16,16,0,0,1,16,16v40A8,8,0,0,1,144,176ZM112,84a12,12,0,1,1,12,12A12,12,0,0,1,112,84Z"></path></svg>
+          <span>Click the document to drop the stamp, then drag it into place.</span>
+        </div>
+
+        <div data-marks="stamp" hidden>
+          <div class="sect" style="margin-bottom:9px">Stamps on the page</div>
+          <div class="marks" data-marklist="stamp"></div>
+        </div>
+
+        <div data-sel="stamp" hidden style="display:flex;flex-direction:column;gap:13px">
+          <div class="sect">Selected stamp</div>
+          <div class="field">
+            <label>Size <span class="text-muted" data-wlab="stamp"></span></label>
+            <input type="range" data-size="stamp" min="10" max="400" step="1">
+          </div>
+          <div class="field">
+            <label>Rotation <span class="text-muted" data-alab="stamp"></span></label>
+            <input type="range" data-angle="stamp" min="-45" max="45" step="0.5">
+          </div>
+          <div class="rowbtns">
+            <button class="btn btn-secondary" data-dup="stamp">Duplicate</button>
+            <button class="btn btn-secondary" data-del="stamp">Delete</button>
+          </div>
+          <div class="info" data-info="stamp"></div>
+        </div>
+
+        <div class="assetopts" id="opts-stamp" hidden style="display:flex;flex-direction:column;gap:13px">
+          <div class="sect">Stamp image</div>
+          <label class="swrow">
+            <input type="checkbox" data-bgcut="stamp"><span class="toggle"></span>
+            <span>
+              <span class="t1">Remove the paper background</span><br>
+              <span class="t2" data-bgsub="stamp">Only the ink is kept</span>
+            </span>
+          </label>
+          <div class="field" data-tolwrap="stamp">
+            <label>How much paper to cut <span class="text-muted" data-tollab="stamp"></span></label>
+            <input type="range" data-tol="stamp" min="4" max="110" step="2">
+            <div class="cut-scale"><span>keep more</span><span>cut more · for grey scans</span></div>
+          </div>
         </div>
       </div>
-      <div class="footer">
+      <div class="panel-foot">
         <button class="btn btn-secondary" data-next="2">
           <svg width="15" height="15" viewBox="0 0 256 256" fill="currentColor"><path d="M165.66,202.34a8,8,0,0,1-11.32,11.32l-80-80a8,8,0,0,1,0-11.32l80-80a8,8,0,0,1,11.32,11.32L91.31,128Z"></path></svg>Back
         </button>
         <div class="right">
-          <button class="btn btn-ghost" data-next="4" id="skipstamp">Skip this step</button>
+          <button class="btn btn-ghost" data-next="4" id="skipstamp">Skip</button>
           <button class="btn btn-primary" data-next="4" id="stampnext" disabled>Continue
             <svg width="15" height="15" viewBox="0 0 256 256" fill="currentColor"><path d="M90.34,53.66a8,8,0,0,1,11.32-11.32l80,80a8,8,0,0,1,0,11.32l-80,80a8,8,0,0,1-11.32-11.32L164.69,128Z"></path></svg>
           </button>
         </div>
       </div>
-    </section>
+    </div>
 
-    <!-- ── 4 · placement ───────────────────────────────────────────────── -->
-    <section class="stepbody" data-body="4">
-      <h3>Drag your marks into place</h3>
-      <p class="lede text-muted">Click the page to drop the selected mark, move it where it belongs,
-        then drag a corner to resize. What you see is exactly what gets saved.</p>
-      <div class="place">
-        <div id="stagewrap">
-          <div id="stage">
-            <div id="empty">Load a PDF and a signature to get started.</div>
-            <div id="page" hidden>
-              <img class="bg" id="bg" alt="">
-              <div class="vig" id="vig1"></div>
-              <div class="vig" id="vig2"></div>
-            </div>
+    <!-- 4 · scan -->
+    <div class="panelbody" data-body="4">
+      <div class="panel-scroll">
+        <h3>Make it look scanned <span class="text-muted" style="font-weight:400;font-size:14px">— optional</span></h3>
+        <p class="lede text-muted">When an office only accepts a scan, turn this on and the page is
+          re-rendered like a photocopy. The document view updates as you tune it.</p>
+
+        <label class="swrow" id="scanrow">
+          <input type="checkbox" id="scan"><span class="toggle"></span>
+          <span>
+            <span class="t1">Fake a scan</span><br>
+            <span class="t2" id="scansub">Off · the PDF keeps its crisp text</span>
+          </span>
+        </label>
+
+        <div id="scanopts" hidden style="display:flex;flex-direction:column;gap:13px">
+          <div class="sect">Scan settings</div>
+          <label class="ctl-row"><span>Strength <span class="text-muted" id="slab">0.50</span></span>
+            <input type="range" id="strength" min="0" max="1" step="0.05" value="0.5"></label>
+          <label class="ctl-row"><span>Max skew <span class="text-muted" id="rlab">0.8°</span></span>
+            <input type="range" id="skew" min="0" max="3" step="0.1" value="0.8"></label>
+          <label class="ctl-row"><span>Grayscale</span>
+            <input type="checkbox" id="gray"><span class="toggle"></span></label>
+          <label class="ctl-row"><span>Show paper edges</span>
+            <input type="checkbox" id="edges"><span class="toggle"></span></label>
+          <label class="ctl-row"><span>Corner damage</span>
+            <input type="checkbox" id="corner" checked><span class="toggle"></span></label>
+          <div class="hint">
+            <svg width="13" height="13" viewBox="0 0 256 256" fill="currentColor" style="vertical-align:-2px;display:inline-block"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm16-40a8,8,0,0,1-8,8,16,16,0,0,1-16-16V128a8,8,0,0,1,0-16,16,16,0,0,1,16,16v40A8,8,0,0,1,144,176ZM112,84a12,12,0,1,1,12,12A12,12,0,0,1,112,84Z"></path></svg>
+            Because the page becomes an image, its text is no longer selectable — that’s the point of a scan.
           </div>
-          <div class="pagenav">
-            <button id="prev" title="Previous page">
-              <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M165.66,202.34a8,8,0,0,1-11.32,11.32l-80-80a8,8,0,0,1,0-11.32l80-80a8,8,0,0,1,11.32,11.32L91.31,128Z"></path></svg>
-            </button>
-            <span class="n" id="pageno">– / –</span>
-            <button id="next" title="Next page">
-              <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M90.34,53.66a8,8,0,0,1,11.32-11.32l80,80a8,8,0,0,1,0,11.32l-80,80a8,8,0,0,1-11.32-11.32L164.69,128Z"></path></svg>
-            </button>
-          </div>
-        </div>
-
-        <div class="ctls">
-          <div class="seg" id="assetseg">
-            <label class="seg-opt"><input type="radio" name="asset" value="signature">Signature</label>
-            <label class="seg-opt"><input type="radio" name="asset" value="stamp">Stamp</label>
-          </div>
-
-          <div class="field">
-            <label>Size <span id="wlab"></span></label>
-            <input type="range" id="size" min="10" max="400" step="1">
-          </div>
-
-          <label class="swrow" id="scanrow">
-            <input type="checkbox" id="scan"><span class="toggle"></span>
-            <span>
-              <span class="t1">Make it look scanned</span><br>
-              <span class="t2" id="scansub">Adds a subtle photocopier feel</span>
-            </span>
-          </label>
-
-          <div class="adv" id="scanadv" hidden>
-            <div class="adv-hd open">
-              <svg class="chev" width="13" height="13" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z"></path></svg>
-              Scan settings
-            </div>
-            <div class="adv-body">
-              <label class="ctl-row"><span>Strength <span class="text-muted" id="slab">0.50</span></span>
-                <input type="range" id="strength" min="0" max="1" step="0.05" value="0.5"></label>
-              <label class="ctl-row"><span>Max skew <span class="text-muted" id="rlab">0.8°</span></span>
-                <input type="range" id="skew" min="0" max="3" step="0.1" value="0.8"></label>
-              <label class="ctl-row"><span>Grayscale</span>
-                <input type="checkbox" id="gray"><span class="toggle"></span></label>
-              <label class="ctl-row"><span>Show paper edges</span>
-                <input type="checkbox" id="edges"><span class="toggle"></span></label>
-              <label class="ctl-row"><span>Corner damage</span>
-                <input type="checkbox" id="corner" checked><span class="toggle"></span></label>
-              <div class="hint">
-                <svg width="13" height="13" viewBox="0 0 256 256" fill="currentColor" style="vertical-align:-2px"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm-8,56a8,8,0,1,1,8,8A8,8,0,0,1,120,80Zm16,104a8,8,0,0,1-8-8V128a8,8,0,0,1,0-16,8,8,0,0,1,8,8v40a8,8,0,0,1,0,16Z"></path></svg>
-                Because the page becomes an image, its text is no longer selectable — that’s the point of a scan.
-              </div>
-            </div>
-          </div>
-
-          <div class="adv">
-            <div class="adv-hd" id="advhd">
-              <svg class="chev" width="13" height="13" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z"></path></svg>
-              Advanced options
-            </div>
-            <div class="adv-body">
-              <div class="field">
-                <label>Rotation <span id="alab"></span></label>
-                <input type="range" id="angle" min="-45" max="45" step="0.5">
-              </div>
-              <label class="ctl-row"><span>Remove paper background <span class="text-muted" id="bgwho"></span></span>
-                <input type="checkbox" id="bgcut"><span class="toggle"></span></label>
-              <div class="field" id="tolwrap">
-                <label>How much paper to cut <span class="text-muted" id="tollab"></span></label>
-                <input type="range" id="tol" min="4" max="110" step="2">
-              </div>
-              <div style="display:flex;gap:8px">
-                <button class="btn btn-secondary" id="dup" style="flex:1;font-size:12px;padding:6px">Duplicate</button>
-                <button class="btn btn-secondary" id="del" style="flex:1;font-size:12px;padding:6px">Delete</button>
-              </div>
-            </div>
-          </div>
-
-          <div id="info">—</div>
         </div>
       </div>
-
-      <div class="footer">
+      <div class="panel-foot">
         <button class="btn btn-secondary" data-next="3">
           <svg width="15" height="15" viewBox="0 0 256 256" fill="currentColor"><path d="M165.66,202.34a8,8,0,0,1-11.32,11.32l-80-80a8,8,0,0,1,0-11.32l80-80a8,8,0,0,1,11.32,11.32L91.31,128Z"></path></svg>Back
         </button>
@@ -560,37 +568,98 @@ input[type=range]:disabled { opacity:.4; }
           </button>
         </div>
       </div>
-    </section>
+    </div>
 
-    <!-- ── 5 · finish ──────────────────────────────────────────────────── -->
-    <section class="stepbody" data-body="5" style="padding-bottom:26px">
-      <div class="finish">
-        <div class="finish-bg"><img id="finishbg" alt=""></div>
-        <div class="finish-veil"></div>
-        <div class="finish-fg">
-          <div class="dialog">
-            <div class="dialog-icon">
-              <svg width="26" height="26" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M224,152a8,8,0,0,1-8,8H192v16h16a8,8,0,0,1,0,16H192v16a8,8,0,0,1-16,0V152a8,8,0,0,1,8-8h32A8,8,0,0,1,224,152ZM92,172a28,28,0,0,1-28,28H56v8a8,8,0,0,1-16,0V152a8,8,0,0,1,8-8H64A28,28,0,0,1,92,172Zm-16,0a12,12,0,0,0-12-12H56v24h8A12,12,0,0,0,76,172Zm88,8a36,36,0,0,1-36,36H112a8,8,0,0,1-8-8V152a8,8,0,0,1,8-8h16A36,36,0,0,1,164,180Zm-16,0a20,20,0,0,0-20-20h-8v40h8A20,20,0,0,0,148,180ZM40,112V56A16,16,0,0,1,56,40h96a8,8,0,0,1,5.66,2.34l56,56A8,8,0,0,1,216,104v8a8,8,0,0,1-16,0v-4H152a8,8,0,0,1-8-8V56H56v56a8,8,0,0,1-16,0Zm120-20h28.69L160,63.31Z"></path></svg>
-            </div>
-            <div class="dialog-title" id="finish-title">Ready to save</div>
-            <p id="finish-summary"></p>
-            <button class="btn btn-primary btn-block" id="download" style="padding:11px">Create my signed PDF</button>
-            <button class="btn btn-secondary btn-block" id="save" style="padding:9px">Save to disk &amp; close</button>
-            <button class="btn btn-ghost btn-block" id="quit" style="padding:9px">Quit</button>
-            <button class="btn btn-secondary btn-block" data-next="4" style="padding:9px">Back to placement</button>
+    <!-- 5 · download -->
+    <div class="panelbody" data-body="5">
+      <div class="panel-scroll">
+        <h3 id="finish-title">Download</h3>
+        <p class="lede text-muted" id="finish-lede">Here is what gets built. What you see on the document
+          is exactly what lands in the file.</p>
+
+        <div class="summary" id="finish-summary">
+          <div class="sum-row">
+            <svg width="15" height="15" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Z"></path></svg>
+            Document <b id="sum-doc">—</b>
+          </div>
+          <div class="sum-row">
+            <svg width="15" height="15" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M227.31,73.37,182.63,28.69a16,16,0,0,0-22.63,0L36.69,152A15.86,15.86,0,0,0,32,163.31V208a16,16,0,0,0,16,16H92.69A15.86,15.86,0,0,0,104,219.31L227.31,96a16,16,0,0,0,0-22.63ZM92.69,208H48V163.31l88-88L180.69,120ZM192,108.69,147.31,64l24-24L216,84.69Z"></path></svg>
+            Marks placed <b id="sum-marks">0</b>
+          </div>
+          <div class="sum-row">
+            <svg width="15" height="15" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40Zm0,16V158.75l-26.07-26.06a16,16,0,0,0-22.63,0l-20,20-44-44a16,16,0,0,0-22.62,0L40,149.37V56ZM40,172l52-52,80,80H40Zm176,28H194.63l-36-36,20-20L216,181.38V200ZM144,100a12,12,0,1,1,12,12A12,12,0,0,1,144,100Z"></path></svg>
+            Scanned look <b id="sum-scan">Off</b>
           </div>
         </div>
-      </div>
-    </section>
 
-  </main>
+        <!-- Both buttons build and download the same file. The coffee one also opens the
+             support page — it is the ask, not a toll gate. -->
+        <button class="bmc" id="dl-coffee">
+          <span class="cup">☕</span>
+          <span class="lines"><span>Buy the developer a coffee</span><small>and download your signed PDF</small></span>
+        </button>
+
+        <button class="btn btn-secondary btn-block" id="dl-free" style="padding:10px;flex-direction:column;gap:2px">
+          <span>Just download for free</span>
+          <small style="font-weight:400;font-size:11px;opacity:.6">and let the developer stop drinking a coffee :(…</small>
+        </button>
+
+        <div class="free">No account, no watermark, nothing stored — and no “three free signatures,
+          then pay”. Just one developer paying for the server that signs your documents.</div>
+
+        <button class="btn btn-secondary btn-block" id="save" style="padding:9px">Save to disk &amp; close</button>
+        <button class="btn btn-ghost btn-block" id="quit" style="padding:9px">Quit</button>
+      </div>
+      <div class="panel-foot">
+        <button class="btn btn-secondary" data-next="4">
+          <svg width="15" height="15" viewBox="0 0 256 256" fill="currentColor"><path d="M165.66,202.34a8,8,0,0,1-11.32,11.32l-80-80a8,8,0,0,1,0-11.32l80-80a8,8,0,0,1,11.32,11.32L91.31,128Z"></path></svg>Back
+        </button>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ── column 3 · the document, the main stage ───────────────────────── -->
+  <section class="docarea">
+    <div class="stage-top">
+      <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor" style="flex:none"><path d="M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Z"></path></svg>
+      <b id="stagename">No document yet</b>
+      <span id="stagepages"></span>
+      <span class="stage-mode" id="stagemode" hidden></span>
+    </div>
+
+    <div id="stage">
+      <div id="empty">
+        <svg width="34" height="34" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M240,136v64a16,16,0,0,1-16,16H32a16,16,0,0,1-16-16V136a16,16,0,0,1,16-16H80a8,8,0,0,1,0,16H32v64H224V136H176a8,8,0,0,1,0-16h48A16,16,0,0,1,240,136ZM85.66,77.66,120,43.31V128a8,8,0,0,0,16,0V43.31l34.34,34.35a8,8,0,0,0,11.32-11.32l-48-48a8,8,0,0,0-11.32,0l-48,48A8,8,0,0,0,85.66,77.66Z"></path></svg>
+        Your document shows up here, full size. Start by adding a PDF.
+      </div>
+      <div id="page" hidden>
+        <img class="bg" id="bg" alt="">
+        <div class="vig" id="vig1"></div>
+        <div class="vig" id="vig2"></div>
+      </div>
+    </div>
+
+    <div class="stage-bar">
+      <div class="pagenav">
+        <button id="prev" title="Previous page">
+          <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M165.66,202.34a8,8,0,0,1-11.32,11.32l-80-80a8,8,0,0,1,0-11.32l80-80a8,8,0,0,1,11.32,11.32L91.31,128Z"></path></svg>
+        </button>
+        <span class="n" id="pageno">– / –</span>
+        <button id="next" title="Next page">
+          <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M90.34,53.66a8,8,0,0,1,11.32-11.32l80,80a8,8,0,0,1,0,11.32l-80,80a8,8,0,0,1-11.32-11.32L164.69,128Z"></path></svg>
+        </button>
+      </div>
+      <span class="stage-hint" id="stagehint"></span>
+    </div>
+  </section>
 </div>
 
 <!-- ── name gate (hosted) ─────────────────────────────────────────────────── -->
-<div class="backdrop" id="gate">
+<div class="backdrop" id="gate" role="dialog" aria-modal="true" aria-labelledby="gatetitle">
   <div class="dialog">
     <span class="brand" style="font-size:20px">sign<i>·</i>scan<i>·</i>send</span>
-    <div class="dialog-title">Start a private session</div>
+    <div class="dialog-title" id="gatetitle">Start a private session</div>
     <p>Your name starts a private session. Files stay in memory for that session only — they are
        never written to the server’s disk, and coming back later always starts a fresh session
        rather than reopening this one.</p>
@@ -599,46 +668,30 @@ input[type=range]:disabled { opacity:.4; }
   </div>
 </div>
 
-<!-- ── coffee ask ─────────────────────────────────────────────────────────── -->
-<div class="backdrop" id="coffee">
-  <div class="dialog">
-    <div class="dialog-icon">
-      <svg width="26" height="26" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M208,80H32A16,16,0,0,0,16,96v40a72.08,72.08,0,0,0,72,72h48a72.15,72.15,0,0,0,70.92-59.29A40,40,0,0,0,208,80Zm-8,63.66V96h8a24,24,0,0,1,0,47.66ZM88,32a8,8,0,0,1,16,0V48a8,8,0,0,1-16,0Zm32,0a8,8,0,0,1,16,0V48a8,8,0,0,1-16,0Zm32,0a8,8,0,0,1,16,0V48a8,8,0,0,1-16,0Z"></path></svg>
-    </div>
-    <div class="dialog-title">Your signed PDF is ready</div>
-    <p><b>sign·scan·send is completely free</b> — no account, no watermark on your document, no
-       “three free signatures, then pay.” Your files are never stored; they vanish the moment
-       you leave.</p>
-    <p>Behind it is one developer, out to kill the print-sign-scan ritual — and paying out of
-       pocket for the server that just signed your document.</p>
-    <button class="bmc" id="coffee-yes">
-      <span class="cup">☕</span>
-      <span class="lines"><span>Buy the developer a coffee</span><small>and download your signed PDF</small></span>
-    </button>
-    <button class="btn btn-ghost btn-block" id="coffee-no" style="padding:9px">Just download — it’s free</button>
-    <div class="fine">Either way, your signed PDF downloads right now.</div>
-  </div>
-</div>
-
-<div id="toast"></div>
+<div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <script>
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
-let DOC = null, placements = [], pageIndex = 0, selected = null, current = null,
+const ASSETS = ['signature', 'stamp'];
+// Each asset gets its own step, so the step you are on says which mark a click drops
+// and which mark the controls in the middle column are talking about.
+const STEP_ASSET = {2: 'signature', 3: 'stamp'};
+
+let DOC = null, placements = [], pageIndex = 0, selected = null,
     scale = 1, busy = false, step = 1, landed = false;
-// Step 1 browses the document from the front; step 4 opens where you sign (the last page),
-// so the two keep separate positions.
-let previewIndex = 0;
-const el = { page: $('#page'), bg: $('#bg'), info: $('#info'), size: $('#size'), angle: $('#angle') };
+const visited = new Set();
+const el = { page: $('#page'), bg: $('#bg') };
 
 $('#host').textContent = location.hostname || '';
 
 function toast(msg, isErr) {
   const t = $('#toast');
-  t.textContent = msg; t.className = isErr ? 'err' : '';
+  t.className = isErr ? 'err' : '';
   t.style.display = 'block';
-  clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', isErr ? 6000 : 2600);
+  t.textContent = msg;   // written while visible, so the live region actually announces it
+  clearTimeout(t._h);
+  t._h = setTimeout(() => { t.style.display = 'none'; t.textContent = ''; }, isErr ? 6000 : 2600);
 }
 
 async function api(url, opts) {
@@ -655,10 +708,21 @@ async function api(url, opts) {
 }
 
 /* ── session gate ────────────────────────────────────────────────────────── */
+// The gate covers the app, so the app behind it is made inert: without that, Tab walks
+// straight out of the dialog into a wizard that has no session to work on.
+function gateOpen(on) {
+  $('#gate').classList.toggle('on', on);
+  ['.topbar', '.shell'].forEach(s => {
+    const n = $(s);
+    if (on) n.setAttribute('inert', ''); else n.removeAttribute('inert');
+  });
+}
+
 function showGate(message) {
-  DOC = null; placements = []; selected = null; current = null; landed = false;
+  DOC = null; placements = []; selected = null; landed = false;
+  visited.clear();
   goStep(1);
-  $('#gate').classList.add('on');
+  gateOpen(true);
   $('#gatename').focus();
   if (message) toast(message, true);
 }
@@ -670,7 +734,7 @@ async function startSession() {
   try {
     const m = await api('/api/start', {method: 'POST', headers: {'Content-Type': 'application/json'},
                                        body: JSON.stringify({name})});
-    $('#gate').classList.remove('on');
+    gateOpen(false);
     applyManifest(m);
     toast('session started for ' + m.name);
   } catch (e) { toast('could not start — ' + e.message, true); }
@@ -680,6 +744,8 @@ async function startSession() {
 function slotOf(name) { return DOC.slots.find(s => s.name === name); }
 function loadedSlots() { return DOC.slots.filter(s => s.loaded); }
 function isLoaded(name) { return !!(DOC && slotOf(name) && slotOf(name).loaded); }
+// The asset this step owns — null on the steps that only look at the page.
+function stepAsset() { return STEP_ASSET[step] || null; }
 
 async function boot() {
   let m;
@@ -699,67 +765,72 @@ async function boot() {
 }
 
 /* ── wizard ──────────────────────────────────────────────────────────────── */
-// Steps 2 and 3 need a document; placing and saving need something to place it on.
+// Everything past step 1 needs a document to work on.
 function reachable(n) {
   if (!DOC) return n === 1;
-  if (n === 1) return true;
-  if (n === 2 || n === 3) return !!DOC.pdf;
-  if (n === 4) return !!DOC.pdf && loadedSlots().length > 0;
-  if (n === 5) return !!DOC.pdf;
-  return false;
+  return n === 1 || !!DOC.pdf;
 }
 
 function stepDone(n) {
   if (!DOC) return false;
   if (n === 1) return !!DOC.pdf;
-  if (n === 2) return isLoaded('signature');
-  if (n === 3) return isLoaded('stamp');
-  if (n === 4) return placements.length > 0;
+  if (n === 2) return isLoaded('signature') && placements.some(p => p.asset === 'signature');
+  if (n === 3) return isLoaded('stamp') && placements.some(p => p.asset === 'stamp');
+  if (n === 4) return visited.has(4);
   return false;
 }
 
 function goStep(n) {
   if (n !== 1 && !reachable(n)) return;
   step = n;
-  $$('.stepbody').forEach(s => s.classList.toggle('on', +s.dataset.body === n));
+  visited.add(n);
+  // A mark stays selected only while its own step is open — otherwise the controls in the
+  // middle column would be pointing at something the current step does not own.
+  if (selected && selected.asset !== stepAsset()) selected = null;
+  $$('.panelbody').forEach(s => s.classList.toggle('on', +s.dataset.body === n));
   $$('#stepper .step').forEach(b => {
     const i = +b.dataset.step;
     b.classList.toggle('active', i === n);
     b.classList.toggle('done', i !== n && stepDone(i));
     b.dataset.reachable = reachable(i) ? '1' : '0';
+    b.disabled = !reachable(i);   // a step you cannot open should not take keyboard focus either
+    b.setAttribute('aria-current', i === n ? 'step' : 'false');
     b.querySelector('.step-dot').textContent = (i !== n && stepDone(i)) ? '✓' : i;
   });
-  if (n === 4 && DOC && DOC.pdf) showPage(pageIndex);
   if (n === 5) prepareFinish();
-  updateButtons();
+  render();
 }
 
-// Where a visitor should land: the first thing still missing, or straight to placement
+// Where a visitor should land: the first thing still missing, or straight to signing
 // when the CLI already handed us a document and its assets.
 function firstOpenStep() {
   if (!DOC || !DOC.pdf) return 1;
-  if (!loadedSlots().length) return 2;
-  return 4;
+  return 2;
 }
 
+// keepPlacements is the only signal that the marks survive: it is true exactly when the
+// document did not change (an asset upload, a background-removal tweak). A PDF swap always
+// resets, matching the server, which drops its own placements in set_pdf() — matching on the
+// filename instead would carry marks from the old document onto a new one of the same name.
 function applyManifest(m, keepPlacements) {
-  const hadDoc = DOC && DOC.pdf && m.pdf && DOC.pdf.name === m.pdf.name;
   DOC = m;
-  if (!keepPlacements && !hadDoc) {
+  if (!keepPlacements) {
     placements = m.placements.map(p => ({...p}));
     pageIndex = m.initial_page;
     selected = null;
   }
   placements = placements.filter(p => slotOf(p.asset) && slotOf(p.asset).loaded);
-  if (!current || !slotOf(current).loaded) {
-    const first = loadedSlots()[0];
-    current = first ? first.name : null;
-  }
+  if (selected && !placements.includes(selected)) selected = null;
   // Set here rather than in boot(): hosted mode leaves boot() early for the name gate, and the
   // first manifest it ever sees comes back from /api/start.
   $('#quit').hidden = m.mode !== 'serve';
   $('#save').hidden = m.mode !== 'cli';
   $('#save').title = m.output ? 'writes ' + m.output : '';
+  // No support URL configured (SCAN_SIGN_SUPPORT_URL=""): the ask disappears and the plain
+  // download is the only, and therefore the primary, button.
+  $('#dl-coffee').hidden = !m.support_url;
+  $('#dl-free').classList.toggle('btn-primary', !m.support_url);
+  $('#dl-free').classList.toggle('btn-secondary', !!m.support_url);
   if (m.mode === 'hosted') {
     $('#whoami').classList.add('on');
     $('#whoname').textContent = m.name;   // textContent, never innerHTML — it is visitor input
@@ -768,7 +839,7 @@ function applyManifest(m, keepPlacements) {
   }
   renderSlotUI();
   if (m.pdf) {
-    pageIndex = Math.min(pageIndex, m.pdf.pages.length - 1);
+    pageIndex = Math.max(0, Math.min(pageIndex, m.pdf.pages.length - 1));
     $('#empty').hidden = true; el.page.hidden = false;
   } else {
     $('#empty').hidden = false; el.page.hidden = true;
@@ -776,7 +847,6 @@ function applyManifest(m, keepPlacements) {
   }
   if (!landed) { landed = true; goStep(firstOpenStep()); }
   else goStep(step);
-  if (m.pdf && step === 4) showPage(pageIndex);
 }
 
 /* ── slots (document, signature, stamp) ──────────────────────────────────── */
@@ -784,28 +854,19 @@ function renderSlotUI() {
   const pdf = DOC && DOC.pdf;
   $('#pdf-loaded').hidden = !pdf;
   if (pdf) $('#pdf-loaded').textContent = pdf.name;
+  $('#pdf-ok').hidden = !pdf;
   $('#pdf-lede').textContent = pdf
-    ? 'Flip through to check it’s the right file. Drop another PDF on it to swap — that clears any marks you’ve placed.'
-    : 'Choose a PDF from your device. It never gets uploaded anywhere — the whole thing happens right here in your browser.';
-  $('#raildoc').hidden = !pdf;
-  if (pdf) $('#raildocname').textContent = pdf.name;
-
-  // Show the document itself rather than just its name: the point of this step is
-  // confirming you picked the right file.
-  $('#pdf-preview').hidden = !pdf;
-  $('#pdfnav').hidden = !pdf;
+    ? 'Flip through it to check it’s the right file. Drop another PDF to swap it — that clears any marks you’ve placed.'
+    : 'Choose the PDF you need to sign. It opens at full size next to these controls, so you can check you picked the right file.';
   $('#icon-pdf').style.display = pdf ? 'none' : '';
   $('#pdf-choose').textContent = pdf ? 'Choose a different PDF' : 'Choose a PDF';
   $('#drop-pdf .drop-title').textContent = pdf ? 'Drop another PDF to swap it' : 'Drag a PDF here';
   $('#pdf-sub').hidden = !!pdf;
-  if (pdf) {
-    previewIndex = Math.min(previewIndex, pdf.pages.length - 1);
-    showPdfPreview(previewIndex);
-  } else {
-    previewIndex = 0;
-  }
 
-  ['signature', 'stamp'].forEach(n => {
+  $('#stagename').textContent = pdf ? pdf.name : 'No document yet';
+  $('#stagepages').textContent = pdf ? `· ${pdf.pages.length} page${pdf.pages.length === 1 ? '' : 's'}` : '';
+
+  ASSETS.forEach(n => {
     const s = DOC && slotOf(n), on = !!(s && s.loaded);
     $('#prev-' + n).hidden = !on;
     $('#icon-' + n).style.display = on ? 'none' : '';
@@ -818,14 +879,8 @@ function renderSlotUI() {
       $(`#drop-${n} .drop-title`).textContent =
         n === 'signature' ? 'Drop a photo of your signature' : 'Drop a photo of your stamp';
     }
-    const radio = $(`#assetseg input[value="${n}"]`);
-    radio.disabled = !on;
-    radio.checked = on && current === n;
     syncAssetOpts(n);
   });
-  const notice = $('#notice-signature');
-  if (notice) notice.hidden = isLoaded('signature');
-  syncBgControls();
 }
 
 // Background removal belongs to the asset, so each asset carries its own controls on
@@ -844,22 +899,6 @@ function syncAssetOpts(name) {
   $(`[data-tollab="${name}"]`).textContent = '· ' + s.bg_tolerance;
 }
 
-// Step 4 keeps a copy so it can be tuned against the page, targeting whichever mark is
-// selected and falling back to the asset the segmented control has active.
-function bgTarget() { return (selected && selected.asset) || current; }
-
-function syncBgControls() {
-  const name = DOC && bgTarget();
-  const s = name && slotOf(name);
-  const on = !!(s && s.loaded);
-  $('#bgcut').disabled = !on;
-  $('#tol').disabled = !on;
-  $('#bgcut').checked = on && !!s.bg_removed;
-  $('#bgwho').textContent = on ? '· ' + name : '';
-  $('#tolwrap').style.display = on && s.bg_removed ? '' : 'none';
-  if (on) { $('#tol').value = s.bg_tolerance; $('#tollab').textContent = '· ' + s.bg_tolerance; }
-}
-
 async function upload(kind, file) {
   if (!file) return;
   try {
@@ -868,7 +907,6 @@ async function upload(kind, file) {
       headers: {'X-Filename': encodeURIComponent(file.name), 'Content-Type': 'application/octet-stream'},
       body: file,
     });
-    if (kind !== 'pdf') current = kind;
     applyManifest(m, kind !== 'pdf');
     toast(`${kind}: ${file.name}`);
   } catch (e) { if (e.needsName) return showGate('session ended — start a new one');
@@ -882,100 +920,146 @@ async function setBg(name, payload) {
               toast(e.message, true); }
 }
 
-function setAsset(name) {
-  if (!isLoaded(name)) return;
-  current = name;
-  const radio = $(`#assetseg input[value="${name}"]`);
-  if (radio) radio.checked = true;
-  syncBgControls();
-}
-
-function showPdfPreview(i) {
-  if (!DOC || !DOC.pdf) return;
-  previewIndex = Math.max(0, Math.min(i, DOC.pdf.pages.length - 1));
-  const p = DOC.pdf.pages[previewIndex];
-  if ($('#pdfthumb').getAttribute('src') !== p.url) $('#pdfthumb').src = p.url;
-  $('#pdfpageno').textContent = `${previewIndex + 1} / ${DOC.pdf.pages.length}`;
-  $('#pdfprev').disabled = previewIndex === 0;
-  $('#pdfnext').disabled = previewIndex === DOC.pdf.pages.length - 1;
-}
-
-/* ── page + overlays ─────────────────────────────────────────────────────── */
+/* ── the stage ───────────────────────────────────────────────────────────── */
 function stageBox() {
   const st = $('#stage');
-  const w = st.clientWidth || Math.min(window.innerWidth - 252 - 400, 1000);
-  const h = st.clientHeight || window.innerHeight - 260;
-  return {w: Math.max(160, w - 8), h: Math.max(160, h - 8)};
+  const cs = getComputedStyle(st);
+  const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+  const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+  const w = (st.clientWidth || 900) - padX;
+  const h = (st.clientHeight || 700) - padY;
+  return {w: Math.max(160, w), h: Math.max(160, h)};
 }
 
 function showPage(i) {
   if (!DOC || !DOC.pdf) return;
-  pageIndex = i;
-  const p = DOC.pdf.pages[i];
-  const box = stageBox();
-  scale = Math.min(box.w / p.width, box.h / p.height);
-  el.page.style.width = p.width * scale + 'px';
-  el.page.style.height = p.height * scale + 'px';
-  if (el.bg.getAttribute('src') !== p.url) el.bg.src = p.url;
-  $('#pageno').textContent = `${i + 1} / ${DOC.pdf.pages.length}`;
-  if (selected && selected.page !== i) selected = null;
+  pageIndex = Math.max(0, Math.min(i, DOC.pdf.pages.length - 1));
+  if (selected && selected.page !== pageIndex) selected = null;
   render();
 }
 
+// One render for the whole right-hand column: page geometry, the marks on it, and every
+// control in the middle column that talks about them.
 function render() {
+  const pdf = DOC && DOC.pdf;
+  if (pdf) {
+    const p = pdf.pages[pageIndex];
+    const box = stageBox();
+    scale = Math.min(box.w / p.width, box.h / p.height);
+    el.page.style.width = p.width * scale + 'px';
+    el.page.style.height = p.height * scale + 'px';
+    if (el.bg.getAttribute('src') !== p.url) el.bg.src = p.url;
+    $('#pageno').textContent = `${pageIndex + 1} / ${pdf.pages.length}`;
+  }
+
+  const asset = stepAsset();
   [...el.page.querySelectorAll('.ov')].forEach(n => n.remove());
-  placements.filter(p => p.page === pageIndex).forEach(p => {
-    const s = slotOf(p.asset);
-    const w = p.width_pt * scale, h = w * s.aspect;
-    const d = document.createElement('div');
-    d.className = 'ov' + (p === selected ? ' sel' : '');
-    d.style.cssText = `left:${p.cx * scale - w / 2}px;top:${p.cy * scale - h / 2}px;width:${w}px;height:${h}px;` +
-                      `transform:rotate(${-p.angle}deg)`;
-    d.innerHTML = `<img src="${s.url}"><div class="handle"></div>`;
-    d.addEventListener('pointerdown', e => startDrag(e, p));
-    el.page.appendChild(d);
-  });
-  updateInfo();
+  if (pdf) {
+    placements.filter(p => p.page === pageIndex).forEach(p => {
+      const s = slotOf(p.asset);
+      const w = p.width_pt * scale, h = w * s.aspect;
+      const d = document.createElement('div');
+      d.className = 'ov' + (p === selected ? ' sel' : '') + (p.asset === asset ? '' : ' locked');
+      d.style.cssText = `left:${p.cx * scale - w / 2}px;top:${p.cy * scale - h / 2}px;width:${w}px;height:${h}px;` +
+                        `transform:rotate(${-p.angle}deg)`;
+      d.innerHTML = `<img src="${s.url}"><div class="handle"></div>`;
+      if (p.asset === asset) d.addEventListener('pointerdown', e => startDrag(e, p));
+      el.page.appendChild(d);
+    });
+  }
+  el.page.classList.toggle('placing', !!(pdf && asset && isLoaded(asset)));
+
+  renderStageChrome();
+  renderMarkControls();
   updateButtons();
+}
+
+function renderStageChrome() {
+  const asset = stepAsset();
+  const mode = $('#stagemode');
+  if (asset && isLoaded(asset)) {
+    mode.hidden = false;
+    mode.textContent = 'Click the page to place your ' + asset;
+  } else if (step === 4 && $('#scan').checked) {
+    mode.hidden = false;
+    mode.textContent = 'Scan preview';
+  } else {
+    mode.hidden = true;
+  }
+  const hints = {
+    1: 'Use the arrows to flip through the document.',
+    2: isLoaded('signature') ? 'Drag to move · corner handle or scroll to resize · arrows to nudge'
+                             : 'Add a signature image to start placing it.',
+    3: isLoaded('stamp') ? 'Drag to move · corner handle or scroll to resize · arrows to nudge'
+                         : 'Add a stamp image, or skip this step.',
+    4: 'The preview is an approximation — the real scan is rendered when you download.',
+    5: $('#scan').checked
+         ? 'Placement is exact — the scanned look is rendered when you download.'
+         : 'What you see here is what lands in the file.',
+  };
+  $('#stagehint').textContent = (DOC && DOC.pdf) ? (hints[step] || '') : '';
+}
+
+// The middle column, for whichever asset this step owns.
+function renderMarkControls() {
+  ASSETS.forEach(n => {
+    const own = n === stepAsset();
+    const mine = placements.filter(p => p.asset === n);
+    const list = $(`[data-marklist="${n}"]`);
+    $(`[data-marks="${n}"]`).hidden = !own || !mine.length;
+    $(`[data-place="${n}"]`).hidden = !own || !isLoaded(n);
+    if (own) {
+      // The list is rebuilt on every render, which would drop keyboard focus on the floor
+      // the moment you activate a row — put it back on the row that took its place.
+      const focusedAt = [...list.children].indexOf(document.activeElement);
+      list.innerHTML = '';
+      mine.forEach((p, i) => {
+        const b = document.createElement('button');
+        b.className = 'mark' + (p === selected ? ' on' : '');
+        b.innerHTML = `<span>${n} ${i + 1}</span><span class="mk-n">page ${p.page + 1}</span>`;
+        b.addEventListener('click', () => {
+          if (p.page !== pageIndex) { pageIndex = p.page; }
+          selected = p; render();
+        });
+        list.appendChild(b);
+      });
+      if (focusedAt >= 0 && list.children.length) {
+        list.children[Math.min(focusedAt, list.children.length - 1)].focus();
+      }
+    }
+    const sel = own && selected && selected.asset === n ? selected : null;
+    $(`[data-sel="${n}"]`).hidden = !sel;
+    if (sel) {
+      const mm = v => (v / 72 * 25.4).toFixed(0);
+      const h = sel.width_pt * slotOf(n).aspect;
+      $(`[data-size="${n}"]`).value = Math.min(400, Math.max(10, sel.width_pt));
+      $(`[data-angle="${n}"]`).value = Math.max(-45, Math.min(45, sel.angle));
+      $(`[data-wlab="${n}"]`).textContent = '· ' + mm(sel.width_pt) + ' mm';
+      $(`[data-alab="${n}"]`).textContent = '· ' + sel.angle.toFixed(1) + '°';
+      $(`[data-info="${n}"]`).textContent =
+        `page ${sel.page + 1} · ${mm(sel.width_pt)} × ${mm(h)} mm · ${sel.angle.toFixed(1)}°`;
+    }
+  });
 }
 
 function updateButtons() {
   const ready = !!(DOC && DOC.pdf) && !busy;
-  $('#download').disabled = !ready;
+  $('#dl-coffee').disabled = !ready;
+  $('#dl-free').disabled = !ready;
   $('#save').disabled = !ready;
-  ['#prev', '#next'].forEach(s => $(s).disabled = !(DOC && DOC.pdf));
-  ['#dup', '#del'].forEach(s => $(s).disabled = !selected);
-  el.size.disabled = !selected;
-  el.angle.disabled = !selected;
-  $$('[data-next]').forEach(b => {
-    const t = +b.dataset.next;
-    if (t > step) b.disabled = !reachable(t);
-  });
+  $('#prev').disabled = !(DOC && DOC.pdf) || pageIndex === 0;
+  $('#next').disabled = !(DOC && DOC.pdf) || pageIndex >= DOC.pdf.pages.length - 1;
+  $$('[data-next]').forEach(b => { b.disabled = !reachable(+b.dataset.next); });
   // On the stamp step, "Continue" means "I added one" — leaving without a stamp is what
-  // Skip is for, and that only needs something else to place.
+  // Skip is for.
   $('#stampnext').disabled = !(isLoaded('stamp') && reachable(4));
   $('#skipstamp').disabled = !reachable(4);
 }
 
-function updateInfo() {
-  if (!selected) {
-    el.info.textContent = DOC && DOC.pdf
-      ? 'Nothing selected — click the page to drop the mark you picked above.' : '—';
-    $('#wlab').textContent = ''; $('#alab').textContent = '';
-    return;
-  }
-  const h = selected.width_pt * slotOf(selected.asset).aspect, mm = v => (v / 72 * 25.4).toFixed(0);
-  el.info.textContent = `${selected.asset} · page ${selected.page + 1}\n${mm(selected.width_pt)} × ${mm(h)} mm · ` +
-                        `${selected.angle.toFixed(1)}°`;
-  el.size.value = Math.min(400, Math.max(10, selected.width_pt));
-  el.angle.value = Math.max(-45, Math.min(45, selected.angle));
-  $('#wlab').textContent = mm(selected.width_pt) + ' mm';
-  $('#alab').textContent = selected.angle.toFixed(1) + '°';
-}
-
-function select(p) { selected = p; syncBgControls(); render(); }
+function select(p) { selected = p; render(); }
 
 function startDrag(e, p) {
+  if (e.button !== 0) return;   // a right-press opens the context menu, it does not drag
   e.stopPropagation();
   select(p);
   const resizing = e.target.classList.contains('handle');
@@ -985,24 +1069,53 @@ function startDrag(e, p) {
   const move = ev => {
     if (resizing) {
       const d = ((ev.clientX - start.x) + (ev.clientY - start.y)) / 2 / scale;
-      p.width_pt = Math.max(8, start.w + d * 2);
+      p.width_pt = clampWidth(start.w + d * 2);
     } else {
       p.cx = (ev.clientX - r.left) / scale - ox;
       p.cy = (ev.clientY - r.top) / scale - oy;
     }
+    clampToPage(p);   // growing a mark near the edge pushes it back on, same as moving it
     render();
   };
-  const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+  // pointercancel too: a touch gesture the browser takes over never sends pointerup, and the
+  // move listener would keep dragging the mark around afterwards.
+  const up = () => {
+    window.removeEventListener('pointermove', move);
+    window.removeEventListener('pointerup', up);
+    window.removeEventListener('pointercancel', up);
+  };
   window.addEventListener('pointermove', move);
   window.addEventListener('pointerup', up);
+  window.addEventListener('pointercancel', up);
+}
+
+// The size and rotation sliders are the truth about the allowed range, so every other way of
+// changing a mark (wheel, drag handle, keyboard) stays inside it.
+function clampWidth(v) { return Math.max(10, Math.min(400, v)); }
+function clampAngle(v) { return Math.max(-45, Math.min(45, v)); }
+// The whole mark stays on the paper, not just its centre: anything past the edge is clipped
+// by the stage — including the resize handle, which would then be impossible to grab back.
+function clampToPage(p) {
+  if (!DOC || !DOC.pdf) return;
+  const pg = DOC.pdf.pages[p.page], s = slotOf(p.asset);
+  if (!pg || !s) return;
+  const fit = (v, half, size) => half * 2 >= size
+    ? size / 2                                    // a mark larger than the page just sits centred
+    : Math.max(half, Math.min(size - half, v));
+  p.cx = fit(p.cx, p.width_pt / 2, pg.width);
+  p.cy = fit(p.cy, p.width_pt * s.aspect / 2, pg.height);
 }
 
 el.page.addEventListener('pointerdown', e => {
+  if (e.button !== 0) return;
   if (e.target !== el.page && e.target !== el.bg) return;
-  if (!current) return toast('load a signature or stamp image first', true);
-  const r = el.page.getBoundingClientRect(), s = slotOf(current);
-  const p = { asset: current, page: pageIndex, cx: (e.clientX - r.left) / scale,
+  const asset = stepAsset();
+  if (!asset) return;
+  if (!isLoaded(asset)) return toast(`add a ${asset} image first`, true);
+  const r = el.page.getBoundingClientRect(), s = slotOf(asset);
+  const p = { asset, page: pageIndex, cx: (e.clientX - r.left) / scale,
               cy: (e.clientY - r.top) / scale, width_pt: s.default_width_pt, angle: 0 };
+  clampToPage(p);   // a click near the edge still drops the mark fully on the paper
   placements.push(p);
   select(p);
 });
@@ -1010,11 +1123,12 @@ el.page.addEventListener('pointerdown', e => {
 el.page.addEventListener('wheel', e => {
   if (!selected) return;
   e.preventDefault();
-  selected.width_pt = Math.max(8, Math.min(2000, selected.width_pt * (1 - e.deltaY * 0.002)));
+  selected.width_pt = clampWidth(selected.width_pt * (1 - e.deltaY * 0.002));
+  clampToPage(selected);
   render();
 }, { passive: false });
 
-/* ── drag & drop onto the zones ──────────────────────────────────────────── */
+/* ── drag & drop ─────────────────────────────────────────────────────────── */
 function wireDrop(zone, kind) {
   ['dragenter', 'dragover'].forEach(t => zone.addEventListener(t, e => {
     e.preventDefault(); zone.classList.add('over');
@@ -1029,26 +1143,54 @@ function wireDrop(zone, kind) {
 wireDrop($('#drop-pdf'), 'pdf');
 wireDrop($('#drop-signature'), 'signature');
 wireDrop($('#drop-stamp'), 'stamp');
+
+// Dropping straight onto the document works too: a PDF swaps the document, an image
+// becomes whichever mark the current step is about.
+$('#stage').addEventListener('dragover', e => e.preventDefault());
+$('#stage').addEventListener('drop', e => {
+  e.preventDefault();
+  const f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (!f) return;
+  if (f.type === 'application/pdf' || /\.pdf$/i.test(f.name)) return upload('pdf', f);
+  // Only the steps that own an asset accept an image: guessing "signature" from the download
+  // step would silently replace one someone already placed.
+  const asset = stepAsset();
+  if (!asset) return toast('open the signature or stamp step to add an image', true);
+  upload(asset, f);
+});
 // A file dropped anywhere else would otherwise navigate away from the session.
 ['dragover', 'drop'].forEach(t => window.addEventListener(t, e => e.preventDefault()));
 
 /* ── wiring ──────────────────────────────────────────────────────────────── */
 $$('[data-next]').forEach(b => b.addEventListener('click', () => goStep(+b.dataset.next)));
 $$('#stepper .step').forEach(b => b.addEventListener('click', () => goStep(+b.dataset.step)));
-$('#pdffile').addEventListener('change', e => upload('pdf', e.target.files[0]));
-$$('input[data-slot]').forEach(i =>
-  i.addEventListener('change', e => upload(i.dataset.slot, e.target.files[0])));
-$$('#assetseg input').forEach(r => r.addEventListener('change', () => setAsset(r.value)));
-$$('.adv-hd').forEach(h => h.addEventListener('click', () => h.classList.toggle('open')));
+// Clear the input after reading the File: otherwise picking the very same file again is a
+// no-op (no change event), which is exactly what someone does after a failed upload.
+function pickHandler(kind) {
+  return e => { const f = e.target.files[0]; e.target.value = ''; upload(kind, f); };
+}
+$('#pdffile').addEventListener('change', pickHandler('pdf'));
+$$('input[data-slot]').forEach(i => i.addEventListener('change', pickHandler(i.dataset.slot)));
 
-el.size.addEventListener('input', () => { if (selected) { selected.width_pt = +el.size.value; render(); } });
-el.angle.addEventListener('input', () => { if (selected) { selected.angle = +el.angle.value; render(); } });
-
-$('#pdfprev').onclick = () => showPdfPreview(previewIndex - 1);
-$('#pdfnext').onclick = () => showPdfPreview(previewIndex + 1);
-
-// Per-asset background removal, wired once for both slots.
-['signature', 'stamp'].forEach(n => {
+ASSETS.forEach(n => {
+  $(`[data-size="${n}"]`).addEventListener('input', e => {
+    if (selected && selected.asset === n) {
+      selected.width_pt = +e.target.value; clampToPage(selected); render();
+    }
+  });
+  $(`[data-angle="${n}"]`).addEventListener('input', e => {
+    if (selected && selected.asset === n) { selected.angle = +e.target.value; render(); }
+  });
+  $(`[data-dup="${n}"]`).addEventListener('click', () => {
+    if (!selected || selected.asset !== n) return;
+    const c = {...selected, cx: selected.cx + 18, cy: selected.cy + 18};
+    placements.push(c); select(c);
+  });
+  $(`[data-del="${n}"]`).addEventListener('click', () => {
+    if (!selected || selected.asset !== n) return;
+    placements = placements.filter(p => p !== selected);
+    selected = null; render();
+  });
   $(`[data-bgcut="${n}"]`).addEventListener('change', e =>
     setBg(n, {mode: e.target.checked ? 'always' : 'never'}));
   const tol = $(`[data-tol="${n}"]`);
@@ -1056,31 +1198,19 @@ $('#pdfnext').onclick = () => showPdfPreview(previewIndex + 1);
   tol.addEventListener('change', () => setBg(n, {tolerance: +tol.value}));
 });
 
-$('#bgcut').addEventListener('change', e => {
-  const n = bgTarget();
-  if (n) setBg(n, {mode: e.target.checked ? 'always' : 'never'});
-});
-$('#tol').addEventListener('input', () => $('#tollab').textContent = '· ' + $('#tol').value);
-$('#tol').addEventListener('change', () => { const n = bgTarget(); if (n) setBg(n, {tolerance: +$('#tol').value}); });
-
 $('#scan').addEventListener('change', e => {
-  $('#scanadv').hidden = !e.target.checked;
+  $('#scanopts').hidden = !e.target.checked;
   $('#scanrow').classList.toggle('on', e.target.checked);
   $('#scansub').textContent = e.target.checked
-    ? 'On · page rendered like a scan' : 'Adds a subtle photocopier feel';
+    ? 'On · the page is rendered like a photocopy' : 'Off · the PDF keeps its crisp text';
   el.page.classList.toggle('scanned', e.target.checked);
+  render();
 });
 $('#strength').addEventListener('input', e => $('#slab').textContent = (+e.target.value).toFixed(2));
 $('#skew').addEventListener('input', e => $('#rlab').textContent = (+e.target.value).toFixed(1) + '°');
 
-$('#prev').onclick = () => DOC && DOC.pdf && pageIndex > 0 && showPage(pageIndex - 1);
-$('#next').onclick = () => DOC && DOC.pdf && pageIndex < DOC.pdf.pages.length - 1 && showPage(pageIndex + 1);
-$('#del').onclick = () => { if (selected) { placements = placements.filter(p => p !== selected); selected = null; render(); } };
-$('#dup').onclick = () => {
-  if (!selected) return;
-  const c = {...selected, cx: selected.cx + 18, cy: selected.cy + 18};
-  placements.push(c); select(c);
-};
+$('#prev').onclick = () => showPage(pageIndex - 1);
+$('#next').onclick = () => showPage(pageIndex + 1);
 
 function scanOptions() {
   return {
@@ -1095,94 +1225,56 @@ function scanOptions() {
 
 /* ── finish ──────────────────────────────────────────────────────────────── */
 function prepareFinish() {
+  $('#finish-lede').textContent =
+    'Here is what gets built. ' + ($('#scan').checked
+      ? 'Placement is exact; the scanned look itself is rendered when you download.'
+      : 'What you see on the document is exactly what lands in the file.');
   if (!DOC || !DOC.pdf) return;
-  $('#finishbg').src = DOC.pdf.pages[Math.min(pageIndex, DOC.pdf.pages.length - 1)].url;
-  const marks = placements.length, pages = DOC.pdf.pages.length;
-  $('#finish-summary').textContent =
-    `${DOC.pdf.name} · ${pages} page${pages === 1 ? '' : 's'} · ` +
-    `${marks} mark${marks === 1 ? '' : 's'} placed` +
-    ($('#scan').checked ? ' · rendered as a scan' : '');
+  const pages = DOC.pdf.pages.length;
+  $('#sum-doc').textContent = DOC.pdf.name;
+  $('#sum-doc').title = `${DOC.pdf.name} · ${pages} page${pages === 1 ? '' : 's'}`;
+  $('#sum-marks').textContent = placements.length
+    ? ASSETS.filter(n => placements.some(p => p.asset === n))
+            .map(n => { const c = placements.filter(p => p.asset === n).length;
+                        return `${c} ${n}${c === 1 ? '' : 's'}`; }).join(' · ')
+    : 'none';
+  $('#sum-scan').textContent = $('#scan').checked ? 'On' : 'Off';
 }
 
-// A finished download is the end of the job, so the server has no reason to keep holding
-// the files: drop them and hand back an empty session under the same name, sitting on
-// step 1. Locally there is nothing to drop — SingleSession.end() is a no-op and the CLI
-// still needs the document after the download, so this only runs hosted.
-async function restartSession() {
-  const name = DOC && DOC.name;
-  placements = []; selected = null; current = null; pageIndex = 0; previewIndex = 0;
-  $('#finish-title').textContent = 'Ready to save';
-  try { await fetch('/api/end', {method: 'POST'}); } catch (e) { /* ending is best-effort */ }
-  landed = false;   // makes applyManifest land on the first open step, which is now step 1
-  try {
-    applyManifest(await api('/api/start', {
-      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name})}));
-  } catch (e) { showGate('session ended — start a new one'); }
-}
-
-// Closing the tab ends the session too: nothing should outlive the visit. beforeunload
+// Closing the tab ends the session: nothing should outlive the visit. beforeunload
 // already asks first when marks are unsaved; this fires once they have actually left.
 window.addEventListener('pagehide', () => {
   if (DOC && DOC.mode === 'hosted' && navigator.sendBeacon) navigator.sendBeacon('/api/end');
 });
 
-// Asked once the file is actually built, so the ask lands on a finished job — and never
-// again after someone has chipped in. Resolves either way: the download always happens.
-let coffeeDone = false;
-
-function askCoffee() {
-  const url = DOC && DOC.support_url;
-  if (!url || coffeeDone) return Promise.resolve();
-  return new Promise(resolve => {
-    const box = $('#coffee');
-    const close = tip => {
-      box.classList.remove('on');
-      window.removeEventListener('keydown', keys, true);
-      // window.open sits inside the click/keypress itself, so popup blockers let it through
-      if (tip) { coffeeDone = true; window.open(url, '_blank', 'noopener'); }
-      resolve();
-    };
-    const keys = e => {
-      if (e.key !== 'Enter' && e.key !== 'Escape') return;
-      e.preventDefault(); e.stopPropagation();
-      close(e.key === 'Enter');
-    };
-    $('#coffee-yes').onclick = () => close(true);
-    $('#coffee-no').onclick = () => close(false);
-    box.onclick = e => { if (e.target === box) close(false); };
-    window.addEventListener('keydown', keys, true);
-    box.classList.add('on');
-    $('#coffee-yes').focus();
-  });
-}
-
-$('#download').onclick = async () => {
+// Download is the end of the wizard — there is no step after it, and nothing to come back to.
+// Both buttons build and save the same file; the coffee one also opens the support page, from
+// inside the click itself so popup blockers let it through.
+async function download(tip) {
   if (busy || !DOC || !DOC.pdf) return;
+  if (tip && DOC.support_url) window.open(DOC.support_url, '_blank', 'noopener');
   busy = true; updateButtons();
-  $('#download').textContent = 'Building…';
+  const btn = tip ? $('#dl-coffee') : $('#dl-free');
+  const label = btn.innerHTML;
+  btn.textContent = 'Building…';
   try {
     const blob = await api('/api/render', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({placements, scan: scanOptions()}),
     });
-    await askCoffee();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = (DOC.pdf.name || 'document.pdf').replace(/\.pdf$/i, '') + '-signed.pdf';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 30000);
-    // The blob is already in the browser's hands, so clearing the server side is safe here.
-    if (DOC.mode === 'hosted') {
-      await restartSession();
-      toast(a.download + ' downloaded — files cleared from the server');
-    } else {
-      toast('downloaded ' + a.download);
-      $('#finish-title').textContent = 'Your signed PDF is downloaded';
-    }
+    toast('downloaded ' + a.download);
   } catch (e) { if (e.needsName) showGate('session ended — start a new one');
                 else toast('render failed — ' + e.message, true); }
-  finally { busy = false; $('#download').textContent = 'Create my signed PDF'; updateButtons(); }
-};
+  finally { busy = false; btn.innerHTML = label; updateButtons(); }
+}
+
+$('#dl-coffee').onclick = () => download(true);
+$('#dl-free').onclick = () => download(false);
 
 $('#save').onclick = () => finish('/api/save', placements, 'Saved — back to the terminal.');
 $('#quit').onclick = () => finish('/api/quit', null, 'Stopped. You can close this tab.');
@@ -1200,32 +1292,39 @@ $('#newsession').onclick = async () => {
 async function finish(url, body, msg) {
   await fetch(url, {method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(body || [])});
+  placements = [];   // handed over — the beforeunload guard has nothing left to protect
   document.body.innerHTML = `<div style="margin:auto;padding:40px;font-size:15px">${msg}</div>`;
 }
 
 /* ── keyboard ────────────────────────────────────────────────────────────── */
 window.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-  if ($('#coffee').classList.contains('on') || $('#gate').classList.contains('on')) return;
-  if (step === 5 && e.key === 'Enter') { e.preventDefault(); return $('#download').click(); }
-  if (step !== 4) return;
-  const stepPx = e.shiftKey ? 10 : 1, rot = e.shiftKey ? 5 : 1;
+  if ($('#gate').classList.contains('on')) return;
+  // Enter is the shortcut for the download, unless something that answers Enter itself has focus.
+  if (step === 5 && e.key === 'Enter' && !e.target.closest('button, a, select')) {
+    e.preventDefault(); return download(false);   // Enter downloads; the coffee needs a click
+  }
+  if (DOC && DOC.pdf && (e.key === 'PageDown' || e.key === 'PageUp')) {
+    e.preventDefault();
+    return showPage(pageIndex + (e.key === 'PageDown' ? 1 : -1));
+  }
+  if (!stepAsset() || !selected) return;
+  const px = e.shiftKey ? 10 : 1, rot = e.shiftKey ? 5 : 1;
   const map = {
-    ArrowLeft: () => nudge(-stepPx, 0), ArrowRight: () => nudge(stepPx, 0),
-    ArrowUp: () => nudge(0, -stepPx), ArrowDown: () => nudge(0, stepPx),
+    ArrowLeft: () => nudge(-px, 0), ArrowRight: () => nudge(px, 0),
+    ArrowUp: () => nudge(0, -px), ArrowDown: () => nudge(0, px),
     '[': () => rotate(rot), ']': () => rotate(-rot),
-    '{': () => rotate(5), '}': () => rotate(-5),
-    Backspace: () => $('#del').click(), Delete: () => $('#del').click(),
-    Enter: () => goStep(5),
-    Tab: () => { const n = loadedSlots().map(s => s.name);
-                 if (n.length) setAsset(n[(n.indexOf(current) + 1) % n.length]); },
-    PageDown: () => $('#next').click(), PageUp: () => $('#prev').click(),
+    Backspace: () => $(`[data-del="${selected.asset}"]`).click(),
+    Delete: () => $(`[data-del="${selected.asset}"]`).click(),
   };
   if (map[e.key]) { e.preventDefault(); map[e.key](); }
 });
-function nudge(dx, dy) { if (selected) { selected.cx += dx; selected.cy += dy; render(); } }
-function rotate(d) { if (selected) { selected.angle += d; render(); } }
-window.addEventListener('resize', () => { if (step === 4 && DOC && DOC.pdf) showPage(pageIndex); });
+function nudge(dx, dy) {
+  if (!selected) return;
+  selected.cx += dx; selected.cy += dy; clampToPage(selected); render();
+}
+function rotate(d) { if (selected) { selected.angle = clampAngle(selected.angle + d); render(); } }
+window.addEventListener('resize', () => { if (DOC && DOC.pdf) render(); });
 // placements live in the tab only — don't lose them to a stray reload
 window.addEventListener('beforeunload', e => { if (placements.length) { e.preventDefault(); e.returnValue = ''; } });
 
