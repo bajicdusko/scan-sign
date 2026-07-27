@@ -141,6 +141,7 @@ and can't be used to get back into a session later.
 | `PORT` | `8080` | listen port |
 | `SCAN_SIGN_MAX_UPLOAD_MB` | `25` | per-file upload cap |
 | `SCAN_SIGN_MAX_PAGES` | `40` | reject PDFs longer than this |
+| `SCAN_SIGN_SUPPORT_URL` | my Buy Me a Coffee page | the tip link offered next to a finished download; set it empty to drop the prompt |
 
 A `railway.json` and `Procfile` are included, so `railway up` deploys it as-is.
 

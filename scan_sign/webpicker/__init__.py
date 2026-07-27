@@ -33,6 +33,10 @@ MAX_UPLOAD_BYTES = int(os.environ.get("SCAN_SIGN_MAX_UPLOAD_MB", "25")) * 1024 *
 MAX_PAGES = int(os.environ.get("SCAN_SIGN_MAX_PAGES", "40"))
 MAX_SCAN_DPI = 200
 
+# The one ask in the whole tool: a coffee, offered next to the finished download.
+# Set SCAN_SIGN_SUPPORT_URL="" to drop the prompt entirely.
+SUPPORT_URL = os.environ.get("SCAN_SIGN_SUPPORT_URL", "https://buymeacoffee.com/bajicdusko").strip()
+
 
 class Session:
     """Everything the browser can look at or replace, guarded by one lock."""
@@ -125,6 +129,7 @@ class Session:
                 "mode": self.mode,
                 "name": self.name,
                 "token": self.token,
+                "support_url": SUPPORT_URL or None,
                 "output": str(self.output) if self.output else None,
                 "pdf": (
                     None
