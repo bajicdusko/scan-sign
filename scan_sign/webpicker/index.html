@@ -132,6 +132,16 @@ p { margin:0 0 var(--space-3); }
           line-height:1.5; color:var(--color-accent-300); }
 .notice svg { flex:none; margin-top:1px; }
 
+/* the loaded PDF, shown on step 1 so you can check it is the right file */
+.docprev { background:#fbfbf7; border-radius:3px; padding:5px; max-height:300px;
+           box-shadow:0 10px 40px rgba(0,0,0,.5); }
+.docprev img { max-height:290px; max-width:100%; object-fit:contain; border-radius:1px; }
+
+/* per-asset background removal, on the step that owns the asset */
+.assetopts { display:flex; flex-direction:column; gap:14px; margin-top:16px; }
+.cut-scale { display:flex; justify-content:space-between; font-size:11px; margin-top:4px;
+             color:color-mix(in srgb, var(--color-text) 45%, transparent); }
+
 .footer { display:flex; align-items:center; gap:10px; margin-top:22px; padding-top:20px;
           border-top:1px solid var(--color-divider); }
 .footer .right { margin-left:auto; display:flex; gap:10px; }
@@ -327,15 +337,26 @@ input[type=range]:disabled { opacity:.4; }
       <p class="lede text-muted" id="pdf-lede">Choose a PDF from your device. It never gets uploaded
         anywhere — the whole thing happens right here in your browser.</p>
       <label class="drop" id="drop-pdf">
-        <svg width="42" height="42" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M240,136v64a16,16,0,0,1-16,16H32a16,16,0,0,1-16-16V136a16,16,0,0,1,16-16H80a8,8,0,0,1,0,16H32v64H224V136H176a8,8,0,0,1,0-16h48A16,16,0,0,1,240,136ZM85.66,77.66,120,43.31V128a8,8,0,0,0,16,0V43.31l34.34,34.35a8,8,0,0,0,11.32-11.32l-48-48a8,8,0,0,0-11.32,0l-48,48A8,8,0,0,0,85.66,77.66Z"></path></svg>
+        <div class="docprev" id="pdf-preview" hidden><img id="pdfthumb" alt="First page of the loaded PDF"></div>
+        <svg id="icon-pdf" width="42" height="42" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M240,136v64a16,16,0,0,1-16,16H32a16,16,0,0,1-16-16V136a16,16,0,0,1,16-16H80a8,8,0,0,1,0,16H32v64H224V136H176a8,8,0,0,1,0-16h48A16,16,0,0,1,240,136ZM85.66,77.66,120,43.31V128a8,8,0,0,0,16,0V43.31l34.34,34.35a8,8,0,0,0,11.32-11.32l-48-48a8,8,0,0,0-11.32,0l-48,48A8,8,0,0,0,85.66,77.66Z"></path></svg>
         <div>
           <div class="drop-title">Drag a PDF here</div>
-          <div class="drop-sub text-muted">or click to choose a file</div>
+          <div class="drop-sub text-muted" id="pdf-sub">or click to choose a file</div>
         </div>
-        <span class="btn btn-secondary" style="pointer-events:none">Choose a PDF</span>
+        <span class="btn btn-secondary" id="pdf-choose" style="pointer-events:none">Choose a PDF</span>
         <div class="loaded-name" id="pdf-loaded" hidden></div>
         <input type="file" id="pdffile" accept="application/pdf,.pdf">
       </label>
+      <!-- Outside the label: a button inside it would re-open the file picker. -->
+      <div class="pagenav" id="pdfnav" hidden style="align-self:center;margin-top:14px">
+        <button id="pdfprev" title="Previous page">
+          <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M165.66,202.34a8,8,0,0,1-11.32,11.32l-80-80a8,8,0,0,1,0-11.32l80-80a8,8,0,0,1,11.32,11.32L91.31,128Z"></path></svg>
+        </button>
+        <span class="n" id="pdfpageno">– / –</span>
+        <button id="pdfnext" title="Next page">
+          <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M90.34,53.66a8,8,0,0,1,11.32-11.32l80,80a8,8,0,0,1,0,11.32l-80,80a8,8,0,0,1-11.32-11.32L164.69,128Z"></path></svg>
+        </button>
+      </div>
       <div class="footer">
         <div class="right">
           <button class="btn btn-primary" data-next="2" disabled>Continue
@@ -361,9 +382,23 @@ input[type=range]:disabled { opacity:.4; }
         <div class="loaded-name" id="loaded-signature" hidden></div>
         <input type="file" accept="image/*" data-slot="signature">
       </label>
-      <div class="notice">
+      <div class="notice" id="notice-signature">
         <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M232,128a104,104,0,1,1-104-104A104.11,104.11,0,0,1,232,128Zm-40.35-30.34-58.34,58.35L100.34,123a8,8,0,0,0-11.32,11.31l38.35,38.35a8,8,0,0,0,11.31,0l64-64a8,8,0,0,0-11.32-11.32Z"></path></svg>
-        Paper background is removed automatically — fine-tune it later under Advanced options.
+        Paper background is removed automatically once the image is in.
+      </div>
+      <div class="assetopts" id="opts-signature" hidden>
+        <label class="swrow">
+          <input type="checkbox" data-bgcut="signature"><span class="toggle"></span>
+          <span>
+            <span class="t1">Remove the paper background</span><br>
+            <span class="t2" data-bgsub="signature">Only the ink is kept</span>
+          </span>
+        </label>
+        <div class="field" data-tolwrap="signature">
+          <label>How much paper to cut <span class="text-muted" data-tollab="signature"></span></label>
+          <input type="range" data-tol="signature" min="4" max="110" step="2">
+          <div class="cut-scale"><span>keep more</span><span>cut more · for grey or yellowed scans</span></div>
+        </div>
       </div>
       <div class="footer">
         <button class="btn btn-secondary" data-next="1">
@@ -393,6 +428,20 @@ input[type=range]:disabled { opacity:.4; }
         <div class="loaded-name" id="loaded-stamp" hidden></div>
         <input type="file" accept="image/*" data-slot="stamp">
       </label>
+      <div class="assetopts" id="opts-stamp" hidden>
+        <label class="swrow">
+          <input type="checkbox" data-bgcut="stamp"><span class="toggle"></span>
+          <span>
+            <span class="t1">Remove the paper background</span><br>
+            <span class="t2" data-bgsub="stamp">Only the ink is kept</span>
+          </span>
+        </label>
+        <div class="field" data-tolwrap="stamp">
+          <label>How much paper to cut <span class="text-muted" data-tollab="stamp"></span></label>
+          <input type="range" data-tol="stamp" min="4" max="110" step="2">
+          <div class="cut-scale"><span>keep more</span><span>cut more · for grey or yellowed scans</span></div>
+        </div>
+      </div>
       <div class="footer">
         <button class="btn btn-secondary" data-next="2">
           <svg width="15" height="15" viewBox="0 0 256 256" fill="currentColor"><path d="M165.66,202.34a8,8,0,0,1-11.32,11.32l-80-80a8,8,0,0,1,0-11.32l80-80a8,8,0,0,1,11.32,11.32L91.31,128Z"></path></svg>Back
@@ -484,10 +533,10 @@ input[type=range]:disabled { opacity:.4; }
                 <label>Rotation <span id="alab"></span></label>
                 <input type="range" id="angle" min="-45" max="45" step="0.5">
               </div>
-              <label class="ctl-row"><span>Trim paper edges</span>
+              <label class="ctl-row"><span>Remove paper background <span class="text-muted" id="bgwho"></span></span>
                 <input type="checkbox" id="bgcut"><span class="toggle"></span></label>
               <div class="field" id="tolwrap">
-                <label>Tolerance <span class="text-muted" id="tollab"></span></label>
+                <label>How much paper to cut <span class="text-muted" id="tollab"></span></label>
                 <input type="range" id="tol" min="4" max="110" step="2">
               </div>
               <div style="display:flex;gap:8px">
@@ -578,6 +627,9 @@ const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 let DOC = null, placements = [], pageIndex = 0, selected = null, current = null,
     scale = 1, busy = false, step = 1, landed = false;
+// Step 1 browses the document from the front; step 4 opens where you sign (the last page),
+// so the two keep separate positions.
+let previewIndex = 0;
 const el = { page: $('#page'), bg: $('#bg'), info: $('#info'), size: $('#size'), angle: $('#angle') };
 
 $('#host').textContent = location.hostname || '';
@@ -731,12 +783,27 @@ function applyManifest(m, keepPlacements) {
 function renderSlotUI() {
   const pdf = DOC && DOC.pdf;
   $('#pdf-loaded').hidden = !pdf;
-  if (pdf) $('#pdf-loaded').textContent = 'Loaded · ' + pdf.name;
+  if (pdf) $('#pdf-loaded').textContent = pdf.name;
   $('#pdf-lede').textContent = pdf
-    ? 'Loaded and ready. Drop another PDF here to swap it out — that clears any marks you placed.'
+    ? 'Flip through to check it’s the right file. Drop another PDF on it to swap — that clears any marks you’ve placed.'
     : 'Choose a PDF from your device. It never gets uploaded anywhere — the whole thing happens right here in your browser.';
   $('#raildoc').hidden = !pdf;
   if (pdf) $('#raildocname').textContent = pdf.name;
+
+  // Show the document itself rather than just its name: the point of this step is
+  // confirming you picked the right file.
+  $('#pdf-preview').hidden = !pdf;
+  $('#pdfnav').hidden = !pdf;
+  $('#icon-pdf').style.display = pdf ? 'none' : '';
+  $('#pdf-choose').textContent = pdf ? 'Choose a different PDF' : 'Choose a PDF';
+  $('#drop-pdf .drop-title').textContent = pdf ? 'Drop another PDF to swap it' : 'Drag a PDF here';
+  $('#pdf-sub').hidden = !!pdf;
+  if (pdf) {
+    previewIndex = Math.min(previewIndex, pdf.pages.length - 1);
+    showPdfPreview(previewIndex);
+  } else {
+    previewIndex = 0;
+  }
 
   ['signature', 'stamp'].forEach(n => {
     const s = DOC && slotOf(n), on = !!(s && s.loaded);
@@ -745,7 +812,7 @@ function renderSlotUI() {
     $('#loaded-' + n).hidden = !on;
     if (on) {
       $('#previmg-' + n).src = s.url;
-      $('#loaded-' + n).textContent = 'Loaded · ' + s.filename;
+      $('#loaded-' + n).textContent = s.filename;
       $(`#drop-${n} .drop-title`).textContent = 'Replace this ' + n;
     } else {
       $(`#drop-${n} .drop-title`).textContent =
@@ -754,22 +821,43 @@ function renderSlotUI() {
     const radio = $(`#assetseg input[value="${n}"]`);
     radio.disabled = !on;
     radio.checked = on && current === n;
+    syncAssetOpts(n);
   });
+  const notice = $('#notice-signature');
+  if (notice) notice.hidden = isLoaded('signature');
   syncBgControls();
 }
 
-// The paper-trim controls act on whichever mark is selected, falling back to the
-// asset the segmented control has active.
+// Background removal belongs to the asset, so each asset carries its own controls on
+// its own step. No guessing about which of the two a shared control is acting on.
+function syncAssetOpts(name) {
+  const s = DOC && slotOf(name), on = !!(s && s.loaded);
+  $('#opts-' + name).hidden = !on;
+  if (!on) return;
+  const cut = $(`[data-bgcut="${name}"]`), tol = $(`[data-tol="${name}"]`);
+  cut.checked = !!s.bg_removed;
+  cut.closest('.swrow').classList.toggle('on', !!s.bg_removed);
+  $(`[data-bgsub="${name}"]`).textContent = s.bg_removed
+    ? 'On · only the ink is kept' : 'Off · the image goes on as-is';
+  $(`[data-tolwrap="${name}"]`).hidden = !s.bg_removed;
+  tol.value = s.bg_tolerance;
+  $(`[data-tollab="${name}"]`).textContent = '· ' + s.bg_tolerance;
+}
+
+// Step 4 keeps a copy so it can be tuned against the page, targeting whichever mark is
+// selected and falling back to the asset the segmented control has active.
 function bgTarget() { return (selected && selected.asset) || current; }
 
 function syncBgControls() {
-  const s = DOC && bgTarget() && slotOf(bgTarget());
+  const name = DOC && bgTarget();
+  const s = name && slotOf(name);
   const on = !!(s && s.loaded);
   $('#bgcut').disabled = !on;
   $('#tol').disabled = !on;
   $('#bgcut').checked = on && !!s.bg_removed;
+  $('#bgwho').textContent = on ? '· ' + name : '';
   $('#tolwrap').style.display = on && s.bg_removed ? '' : 'none';
-  if (on) { $('#tol').value = s.bg_tolerance; $('#tollab').textContent = s.bg_tolerance; }
+  if (on) { $('#tol').value = s.bg_tolerance; $('#tollab').textContent = '· ' + s.bg_tolerance; }
 }
 
 async function upload(kind, file) {
@@ -800,6 +888,16 @@ function setAsset(name) {
   const radio = $(`#assetseg input[value="${name}"]`);
   if (radio) radio.checked = true;
   syncBgControls();
+}
+
+function showPdfPreview(i) {
+  if (!DOC || !DOC.pdf) return;
+  previewIndex = Math.max(0, Math.min(i, DOC.pdf.pages.length - 1));
+  const p = DOC.pdf.pages[previewIndex];
+  if ($('#pdfthumb').getAttribute('src') !== p.url) $('#pdfthumb').src = p.url;
+  $('#pdfpageno').textContent = `${previewIndex + 1} / ${DOC.pdf.pages.length}`;
+  $('#pdfprev').disabled = previewIndex === 0;
+  $('#pdfnext').disabled = previewIndex === DOC.pdf.pages.length - 1;
 }
 
 /* ── page + overlays ─────────────────────────────────────────────────────── */
@@ -946,11 +1044,23 @@ $$('.adv-hd').forEach(h => h.addEventListener('click', () => h.classList.toggle(
 el.size.addEventListener('input', () => { if (selected) { selected.width_pt = +el.size.value; render(); } });
 el.angle.addEventListener('input', () => { if (selected) { selected.angle = +el.angle.value; render(); } });
 
+$('#pdfprev').onclick = () => showPdfPreview(previewIndex - 1);
+$('#pdfnext').onclick = () => showPdfPreview(previewIndex + 1);
+
+// Per-asset background removal, wired once for both slots.
+['signature', 'stamp'].forEach(n => {
+  $(`[data-bgcut="${n}"]`).addEventListener('change', e =>
+    setBg(n, {mode: e.target.checked ? 'always' : 'never'}));
+  const tol = $(`[data-tol="${n}"]`);
+  tol.addEventListener('input', () => $(`[data-tollab="${n}"]`).textContent = '· ' + tol.value);
+  tol.addEventListener('change', () => setBg(n, {tolerance: +tol.value}));
+});
+
 $('#bgcut').addEventListener('change', e => {
   const n = bgTarget();
   if (n) setBg(n, {mode: e.target.checked ? 'always' : 'never'});
 });
-$('#tol').addEventListener('input', () => $('#tollab').textContent = $('#tol').value);
+$('#tol').addEventListener('input', () => $('#tollab').textContent = '· ' + $('#tol').value);
 $('#tol').addEventListener('change', () => { const n = bgTarget(); if (n) setBg(n, {tolerance: +$('#tol').value}); });
 
 $('#scan').addEventListener('change', e => {
@@ -993,6 +1103,28 @@ function prepareFinish() {
     `${marks} mark${marks === 1 ? '' : 's'} placed` +
     ($('#scan').checked ? ' · rendered as a scan' : '');
 }
+
+// A finished download is the end of the job, so the server has no reason to keep holding
+// the files: drop them and hand back an empty session under the same name, sitting on
+// step 1. Locally there is nothing to drop — SingleSession.end() is a no-op and the CLI
+// still needs the document after the download, so this only runs hosted.
+async function restartSession() {
+  const name = DOC && DOC.name;
+  placements = []; selected = null; current = null; pageIndex = 0; previewIndex = 0;
+  $('#finish-title').textContent = 'Ready to save';
+  try { await fetch('/api/end', {method: 'POST'}); } catch (e) { /* ending is best-effort */ }
+  landed = false;   // makes applyManifest land on the first open step, which is now step 1
+  try {
+    applyManifest(await api('/api/start', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name})}));
+  } catch (e) { showGate('session ended — start a new one'); }
+}
+
+// Closing the tab ends the session too: nothing should outlive the visit. beforeunload
+// already asks first when marks are unsaved; this fires once they have actually left.
+window.addEventListener('pagehide', () => {
+  if (DOC && DOC.mode === 'hosted' && navigator.sendBeacon) navigator.sendBeacon('/api/end');
+});
 
 // Asked once the file is actually built, so the ask lands on a finished job — and never
 // again after someone has chipped in. Resolves either way: the download always happens.
@@ -1039,8 +1171,14 @@ $('#download').onclick = async () => {
     a.download = (DOC.pdf.name || 'document.pdf').replace(/\.pdf$/i, '') + '-signed.pdf';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 30000);
-    toast('downloaded ' + a.download);
-    $('#finish-title').textContent = 'Your signed PDF is downloaded';
+    // The blob is already in the browser's hands, so clearing the server side is safe here.
+    if (DOC.mode === 'hosted') {
+      await restartSession();
+      toast(a.download + ' downloaded — files cleared from the server');
+    } else {
+      toast('downloaded ' + a.download);
+      $('#finish-title').textContent = 'Your signed PDF is downloaded';
+    }
   } catch (e) { if (e.needsName) showGate('session ended — start a new one');
                 else toast('render failed — ' + e.message, true); }
   finally { busy = false; $('#download').textContent = 'Create my signed PDF'; updateButtons(); }
