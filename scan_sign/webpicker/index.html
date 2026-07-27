@@ -2,190 +2,585 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>scan-sign</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sign · scan · send</title>
 <style>
-  :root { color-scheme: dark; --bg:#1c1d20; --panel:#26282c; --line:#3a3d43; --fg:#e8e8ea;
-          --muted:#9a9ea6; --accent:#4c9aff; }
-  * { box-sizing: border-box; }
-  body { margin:0; font:13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-         background:var(--bg); color:var(--fg); display:flex; height:100vh; overflow:hidden; }
-  #side { width:262px; flex:none; background:var(--panel); border-right:1px solid var(--line);
-          padding:14px; overflow-y:auto; }
-  #stage { flex:1; overflow:auto; display:flex; align-items:flex-start; justify-content:center; padding:24px; }
-  #empty { margin:auto; text-align:center; color:var(--muted); max-width:340px; }
-  #page { position:relative; background:#fff; box-shadow:0 6px 30px rgba(0,0,0,.55); user-select:none; touch-action:none; }
-  #page img.bg { display:block; width:100%; height:100%; pointer-events:none; }
-  .ov { position:absolute; transform-origin:center center; cursor:move; }
-  .ov img { width:100%; height:100%; display:block; pointer-events:none; -webkit-user-drag:none; }
-  .ov.sel { outline:2px dashed var(--accent); outline-offset:2px; }
-  .handle { position:absolute; right:-7px; bottom:-7px; width:14px; height:14px; background:var(--accent);
-            border-radius:3px; cursor:nwse-resize; display:none; }
-  .ov.sel .handle { display:block; }
-  h2 { font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin:16px 0 7px; }
-  h2:first-child { margin-top:0; }
-  button { font:inherit; background:#33363c; color:var(--fg); border:1px solid var(--line);
-           border-radius:6px; padding:6px 9px; cursor:pointer; }
-  button:hover:not(:disabled) { background:#3c4046; }
-  button:disabled { opacity:.45; cursor:default; }
-  button.primary { background:var(--accent); border-color:var(--accent); color:#08203f; font-weight:600; }
-  button.wide { width:100%; margin-bottom:6px; }
-  .slot { border:1px solid var(--line); border-radius:7px; margin-bottom:7px; background:#2c2f34; padding:7px; }
-  .slot.on { border-color:var(--accent); background:#2f3a4c; }
-  .slot .top { display:flex; align-items:center; gap:8px; }
-  .slot .name { flex:1; font-weight:600; text-transform:capitalize; }
-  .slot .file { color:var(--muted); font-size:11px; margin-top:4px; overflow:hidden;
-                text-overflow:ellipsis; white-space:nowrap; }
-  .slot img.thumb { height:26px; max-width:60px; object-fit:contain; background:#fff; border-radius:3px; padding:2px; }
-  .slot .opts { margin-top:5px; font-size:11px; color:var(--muted); }
-  label.file-btn { display:inline-block; background:#33363c; border:1px solid var(--line); border-radius:6px;
-                   padding:4px 8px; cursor:pointer; font-size:11px; }
-  label.file-btn:hover { background:#3c4046; }
-  input[type=file] { display:none; }
-  .row { display:flex; gap:6px; align-items:center; }
-  #pageno { flex:1; text-align:center; }
-  input[type=range] { width:100%; }
-  #info { color:var(--muted); font-variant-numeric:tabular-nums; white-space:pre-line; min-height:52px; }
-  kbd { background:#33363c; border:1px solid var(--line); border-radius:3px; padding:0 4px; font-size:11px; }
-  .hint { color:#8b8f97; font-size:11px; line-height:1.7; }
-  #scanbox { display:none; padding-left:2px; }
-  #scanbox.on { display:block; }
-  #toast { position:fixed; left:50%; top:14px; transform:translateX(-50%); background:#33363c;
-           border:1px solid var(--line); border-radius:8px; padding:9px 16px; display:none; max-width:70vw; }
-  #toast.err { border-color:#c0453f; background:#3a2626; }
-  #gate { position:fixed; inset:0; background:var(--bg); display:none; align-items:center;
-          justify-content:center; z-index:20; }
-  #gate.on { display:flex; }
-  #gate .card { background:var(--panel); border:1px solid var(--line); border-radius:12px;
-                padding:28px; width:min(420px, 90vw); }
-  #gate h1 { margin:0 0 6px; font-size:20px; }
-  #gate p { margin:0 0 18px; color:var(--muted); font-size:13px; line-height:1.6; }
-  #gate input[type=text] { width:100%; font:inherit; padding:9px 11px; border-radius:7px;
-                           border:1px solid var(--line); background:#1f2126; color:var(--fg); }
-  #gate button { margin-top:12px; width:100%; }
-  #coffee { position:fixed; inset:0; background:rgba(10,11,13,.72); display:none; align-items:center;
-            justify-content:center; z-index:30; padding:20px; }
-  #coffee.on { display:flex; }
-  #coffee .card { background:var(--panel); border:1px solid var(--line); border-radius:14px;
-                  padding:26px 26px 20px; width:min(400px, 92vw); text-align:center; }
-  #coffee .cup { font-size:34px; line-height:1; }
-  #coffee h1 { margin:10px 0 8px; font-size:18px; }
-  #coffee p { margin:0 0 14px; color:var(--muted); font-size:13px; line-height:1.65; text-align:left; }
-  #coffee p:last-of-type { margin-bottom:20px; }
-  #coffee p b { color:var(--fg); font-weight:600; }
-  #coffee .bmc { width:100%; padding:11px; font-weight:700; font-size:14px;
-                 background:#ffdd00; border-color:#ffdd00; color:#141414; }
-  #coffee .bmc:hover { background:#ffe74d; }
-  #coffee .mug { margin-right:8px; }
-  #coffee .plain { width:100%; margin-top:9px; padding:9px; color:var(--muted); }
-  #coffee .plain:hover { color:var(--fg); }
-  #coffee .fine { margin-top:13px; font-size:11px; color:#7f838b; }
-  #whoami { display:none; align-items:center; gap:8px; margin-bottom:4px; }
-  #whoami.on { display:flex; }
-  #whoami .who { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
-  #whoami button { font-size:11px; padding:4px 8px; }
+/* ── Nocturne tokens ───────────────────────────────────────────────────────
+   Copied from the design system rather than @import-ed: this tool runs on a
+   laptop with no network as often as it runs on a server, and a page that
+   promises "everything stays on your device" should not phone a font CDN. */
+:root {
+  color-scheme: dark;
+  --color-bg: #161826;
+  --color-surface: #232532;
+  --color-text: #e9e9ed;
+  --color-accent: #9184d9;
+  --color-divider: color-mix(in srgb, #e9e9ed 16%, transparent);
+
+  --color-neutral-800: #3f424d;
+  --color-neutral-900: #292b31;
+
+  --color-accent-300: #d2cefd;
+  --color-accent-800: #423a6a;
+  --color-accent-900: #2b2741;
+
+  --font-heading: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --space-1: 2.8px; --space-2: 5.6px; --space-3: 8.4px;
+  --space-4: 11.2px; --space-6: 16.8px; --space-8: 22.4px;
+
+  --radius-sm: 4px; --radius-md: 8px; --radius-lg: 14px;
+
+  --shadow-md: 0 0 0 1px #595d6c, 0 6px 18px rgba(0,0,0,.55);
+  --shadow-lg: 0 0 0 1px #9397ab, 0 16px 40px rgba(0,0,0,.65);
+}
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }   /* .btn/.drop set display, which outranks the UA rule */
+body { margin:0; background:var(--color-bg); color:var(--color-text);
+       font:400 15px/1.55 var(--font-body); height:100vh; overflow:hidden; }
+h1,h2,h3,h4 { font-family:var(--font-heading); font-weight:500; line-height:1.12;
+              letter-spacing:-.015em; margin:0 0 var(--space-2); }
+h3 { font-size:22px; }
+p { margin:0 0 var(--space-3); }
+.text-muted { color:color-mix(in srgb, var(--color-text) 55%, transparent); }
+:focus { outline:none; }
+:focus-visible { outline:2px solid var(--color-accent); outline-offset:2px; }
+::selection { background:color-mix(in srgb, var(--color-accent) 30%, transparent); }
+
+/* ── buttons ─────────────────────────────────────────────────────────────── */
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:6px;
+       cursor:pointer; text-decoration:none; font-family:var(--font-heading);
+       font-weight:500; font-size:14px; line-height:1.2; color:var(--color-text);
+       background:transparent; border:1px solid transparent;
+       padding:var(--space-2) calc(var(--space-3) * 1.2); border-radius:var(--radius-md); }
+.btn svg { display:block; }
+.btn:disabled { opacity:.45; cursor:not-allowed; }
+.btn-primary { color:var(--color-accent); border-color:var(--color-accent); }
+.btn-primary:hover:not(:disabled) { background:color-mix(in srgb, var(--color-accent) 12%, transparent); }
+.btn-primary:active:not(:disabled) { background:color-mix(in srgb, var(--color-accent) 22%, transparent); }
+.btn-secondary { border-color:var(--color-divider); }
+.btn-secondary:hover:not(:disabled) { background:color-mix(in srgb, var(--color-text) 7%, transparent); }
+.btn-ghost { color:var(--color-accent); padding-inline:var(--space-1); }
+.btn-ghost:hover:not(:disabled) { background:color-mix(in srgb, var(--color-accent) 10%, transparent); }
+.btn-block { width:100%; }
+
+/* ── shell ───────────────────────────────────────────────────────────────── */
+.topbar { display:flex; align-items:center; gap:16px; padding:18px 26px;
+          border-bottom:1px solid var(--color-divider); }
+.brand { font-family:var(--font-heading); font-weight:600; font-size:18px; letter-spacing:-.01em; }
+.brand i { font-style:normal; color:var(--color-accent); }
+.host { font-size:11px; color:color-mix(in srgb, var(--color-text) 42%, transparent); }
+.pill-priv { display:inline-flex; align-items:center; gap:6px; font-size:11.5px;
+             color:var(--color-accent-300); background:var(--color-accent-900);
+             border:1px solid var(--color-accent-800); padding:5px 10px; border-radius:999px; }
+
+.shell { display:grid; grid-template-columns:252px 1fr; height:calc(100vh - 61px); }
+.rail { padding:26px 24px; border-right:1px solid var(--color-divider);
+        overflow-y:auto; display:flex; flex-direction:column; }
+.pane { min-width:0; min-height:0; display:flex; }
+.stepbody { flex:1; min-width:0; min-height:0; padding:26px 30px 22px;
+            display:none; flex-direction:column; overflow:auto; }
+.stepbody.on { display:flex; }
+.lede { font-size:13.5px; margin:0 0 20px; max-width:60ch; }
+
+/* ── stepper ─────────────────────────────────────────────────────────────── */
+.step { display:flex; align-items:center; gap:11px; padding:9px 0; width:100%;
+        background:none; border:0; text-align:left; font:inherit; color:inherit; cursor:default; }
+.step[data-reachable="1"] { cursor:pointer; }
+.step-dot { width:26px; height:26px; flex:none; border-radius:50%; display:grid; place-items:center;
+            font-size:12px; font-weight:600; border:1.5px solid var(--color-divider);
+            color:color-mix(in srgb, var(--color-text) 55%, transparent); }
+.step.done .step-dot { background:var(--color-accent); border-color:var(--color-accent); color:#0f111c; }
+.step.active .step-dot { border-color:var(--color-accent); color:var(--color-accent);
+                         box-shadow:0 0 0 4px var(--color-accent-900); }
+.step-txt { font-size:14px; color:color-mix(in srgb, var(--color-text) 50%, transparent); }
+.step.active .step-txt { color:var(--color-text); font-weight:500; }
+.step.done .step-txt { color:var(--color-text); }
+.step-line { width:1.5px; height:14px; margin-left:12px; background:var(--color-divider); }
+
+.railcard { margin-top:26px; padding:14px; border-radius:10px; background:var(--color-surface);
+            font-size:12px; line-height:1.6; color:color-mix(in srgb, var(--color-text) 55%, transparent); }
+.railcard b { color:var(--color-text); font-weight:500; display:block; word-break:break-all; }
+.railnote { margin-top:auto; padding-top:16px; font-size:11px; line-height:1.65;
+            color:color-mix(in srgb, var(--color-text) 45%, transparent); }
+.railnote code { word-break:break-all; }
+#whoami { display:none; align-items:center; gap:8px; margin-bottom:18px;
+          padding-bottom:16px; border-bottom:1px solid var(--color-divider); }
+#whoami.on { display:flex; }
+#whoami .who { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+               font-size:13px; font-weight:500; }
+#whoami button { font-size:11px; padding:4px 9px; }
+
+/* ── drop zones ──────────────────────────────────────────────────────────── */
+.drop { border:1.5px dashed var(--color-divider); border-radius:10px;
+        background:color-mix(in srgb, var(--color-text) 3%, transparent);
+        flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+        gap:14px; cursor:pointer; text-align:center; padding:34px; min-height:200px; max-height:460px; }
+.drop:hover, .drop.over { border-color:var(--color-accent);
+                          background:color-mix(in srgb, var(--color-accent) 7%, transparent); }
+.drop-title { font-size:15px; font-weight:500; color:var(--color-text); }
+.drop-sub { font-size:12.5px; margin-top:3px; }
+.drop input[type=file] { display:none; }
+.drop .preview { width:170px; height:66px; background:#fbfbf7; border-radius:6px; padding:5px;
+                 display:grid; place-items:center; }
+.drop .preview img { max-width:100%; max-height:100%; object-fit:contain; }
+.drop .loaded-name { font-size:12.5px; color:var(--color-accent-300); word-break:break-all;
+                     max-width:34ch; }
+
+.notice { display:flex; align-items:flex-start; gap:7px; margin-top:14px; font-size:12px;
+          line-height:1.5; color:var(--color-accent-300); }
+.notice svg { flex:none; margin-top:1px; }
+
+.footer { display:flex; align-items:center; gap:10px; margin-top:22px; padding-top:20px;
+          border-top:1px solid var(--color-divider); }
+.footer .right { margin-left:auto; display:flex; gap:10px; }
+
+/* ── placement stage ─────────────────────────────────────────────────────── */
+.place { flex:1; min-height:0; display:flex; gap:24px; align-items:stretch; }
+#stagewrap { flex:1; min-width:0; display:flex; flex-direction:column; gap:12px; align-items:center; }
+#stage { flex:1; min-height:0; width:100%; overflow:auto; display:flex;
+         align-items:flex-start; justify-content:center; }
+#empty { margin:auto; text-align:center; font-size:13px;
+         color:color-mix(in srgb, var(--color-text) 55%, transparent); }
+#page { position:relative; background:#fbfbf7; border-radius:2px;
+        box-shadow:0 10px 40px rgba(0,0,0,.5); user-select:none; touch-action:none; }
+#page img.bg { display:block; width:100%; height:100%; pointer-events:none; border-radius:2px; }
+#page.scanned img.bg { filter:contrast(1.06) brightness(.985) sepia(.10) saturate(.9); }
+.vig { position:absolute; inset:0; pointer-events:none; display:none; border-radius:2px; }
+#page.scanned .vig { display:block; }
+#vig1 { background:radial-gradient(120% 130% at 12% 8%, transparent 62%, rgba(60,50,30,.28));
+        mix-blend-mode:multiply; }
+#vig2 { inset:auto 0 0 auto; width:90px; height:90px;
+        background:radial-gradient(circle at bottom right, rgba(35,24,12,.5), transparent 70%); }
+.ov { position:absolute; transform-origin:center center; cursor:move; }
+.ov img { width:100%; height:100%; display:block; pointer-events:none; -webkit-user-drag:none; }
+.ov.sel { outline:2px dashed var(--color-accent); outline-offset:3px; border-radius:1px; }
+.handle { position:absolute; right:-6px; bottom:-6px; width:13px; height:13px;
+          background:var(--color-accent); border-radius:3px; box-shadow:0 0 0 2px var(--color-bg);
+          cursor:nwse-resize; display:none; }
+.ov.sel .handle { display:block; }
+
+.pagenav { display:inline-flex; align-items:center; gap:2px; background:var(--color-surface);
+           border:1px solid var(--color-divider); border-radius:999px; padding:4px; flex:none; }
+.pagenav button { width:30px; height:30px; border:0; background:transparent; color:var(--color-text);
+                  border-radius:50%; cursor:pointer; display:grid; place-items:center; }
+.pagenav button:hover:not(:disabled) { background:color-mix(in srgb, var(--color-text) 8%, transparent); }
+.pagenav button:disabled { opacity:.35; cursor:default; }
+.pagenav .n { padding:0 10px; font-size:12.5px; font-variant-numeric:tabular-nums;
+              color:color-mix(in srgb, var(--color-text) 65%, transparent); }
+
+/* ── placement controls ──────────────────────────────────────────────────── */
+.ctls { width:292px; flex:none; display:flex; flex-direction:column; gap:15px; overflow-y:auto;
+        padding-right:2px; }
+.seg { display:inline-flex; overflow:hidden; border:1px solid var(--color-divider);
+       border-radius:var(--radius-md); align-self:flex-start; }
+.seg-opt { display:inline-flex; align-items:center; gap:6px; padding:7px 12px;
+           font-size:13px; cursor:pointer; }
+.seg-opt input { position:absolute; opacity:0; width:0; height:0; pointer-events:none; }
+.seg-opt + .seg-opt { border-left:1px solid var(--color-divider); }
+.seg-opt:has(input:checked) { color:var(--color-accent); box-shadow:inset 0 0 0 1px var(--color-accent); }
+.seg-opt:has(input:disabled) { opacity:.4; cursor:not-allowed; }
+.seg-opt:has(input:focus-visible) { outline:2px solid var(--color-accent); outline-offset:-2px; }
+
+.field > label { display:block; font-size:12px; margin-bottom:5px;
+                 color:color-mix(in srgb, var(--color-text) 70%, transparent); }
+input[type=range] { width:100%; accent-color:var(--color-accent); }
+input[type=range]:disabled { opacity:.4; }
+
+.toggle { position:relative; width:38px; height:22px; border-radius:999px;
+          background:var(--color-neutral-800); flex:none; transition:.15s; }
+.toggle::after { content:""; position:absolute; top:2px; left:2px; width:18px; height:18px;
+                 border-radius:50%; background:#fff; transition:.15s; }
+.swrow input, .ctl-row input[type=checkbox] { position:absolute; opacity:0; width:0; height:0; }
+.swrow input:checked + .toggle, .ctl-row input:checked + .toggle { background:var(--color-accent); }
+.swrow input:checked + .toggle::after, .ctl-row input:checked + .toggle::after { left:18px; }
+.swrow input:focus-visible + .toggle, .ctl-row input:focus-visible + .toggle {
+  outline:2px solid var(--color-accent); outline-offset:2px; }
+.swrow { position:relative; display:flex; align-items:center; gap:12px; padding:13px 14px;
+         border-radius:10px; background:var(--color-surface); cursor:pointer;
+         border:1px solid transparent; }
+.swrow.on { background:var(--color-accent-900); border-color:var(--color-accent-800); }
+.swrow .t1 { font-size:13.5px; font-weight:500; }
+.swrow .t2 { font-size:11.5px; color:color-mix(in srgb, var(--color-text) 50%, transparent); }
+.swrow.on .t2 { color:var(--color-accent-300); }
+
+.adv { border-top:1px solid var(--color-divider); }
+.adv-hd { display:flex; align-items:center; gap:8px; padding:12px 0; font-size:13px;
+          font-weight:500; color:var(--color-text); cursor:pointer; user-select:none; }
+.adv-hd .chev { transition:.15s; }
+.adv-hd.open .chev { transform:rotate(90deg); }
+.adv-body { display:none; flex-direction:column; gap:15px; padding:2px 0 8px; }
+.adv-hd.open + .adv-body { display:flex; }
+.ctl-row { position:relative; display:flex; align-items:center; justify-content:space-between;
+           gap:10px; font-size:12.5px; cursor:pointer; }
+.ctl-row input[type=range] { width:148px; }
+#info { font-size:11.5px; line-height:1.6; white-space:pre-line; min-height:34px;
+        font-variant-numeric:tabular-nums; color:color-mix(in srgb, var(--color-text) 55%, transparent); }
+.hint { font-size:11.5px; line-height:1.5; color:color-mix(in srgb, var(--color-text) 50%, transparent); }
+
+/* ── finish step ─────────────────────────────────────────────────────────── */
+.finish { position:relative; flex:1; min-height:0; overflow:hidden; border-radius:var(--radius-lg);
+          background:radial-gradient(120% 90% at 50% 0%,
+                     color-mix(in srgb, var(--color-accent) 6%, transparent), transparent 60%); }
+.finish-bg { position:absolute; inset:0; filter:blur(2px); opacity:.3; pointer-events:none;
+             display:flex; align-items:center; justify-content:center; padding:26px; }
+.finish-bg img { max-width:100%; max-height:100%; object-fit:contain; border-radius:2px;
+                 box-shadow:0 10px 40px rgba(0,0,0,.5); }
+.finish-veil { position:absolute; inset:0;
+               background:color-mix(in srgb, var(--color-neutral-900) 55%, transparent); }
+.finish-fg { position:absolute; inset:0; display:grid; place-items:center; padding:22px;
+             overflow:auto; }
+
+.dialog { width:min(420px,100%); display:flex; flex-direction:column; gap:var(--space-3);
+          padding:var(--space-6); border-radius:var(--radius-lg); background:var(--color-surface);
+          box-shadow:var(--shadow-lg); align-items:center; text-align:center; }
+.dialog-icon { width:56px; height:56px; border-radius:50%; background:var(--color-accent-900);
+               display:grid; place-items:center; }
+.dialog-title { font-family:var(--font-heading); font-weight:500; font-size:20px; }
+.dialog p { font-size:13px; text-align:left; margin:0; line-height:1.65;
+            color:color-mix(in srgb, var(--color-text) 82%, transparent); }
+.dialog p b { color:var(--color-text); font-weight:600; }
+.dialog .fine { font-size:11px; color:color-mix(in srgb, var(--color-text) 50%, transparent); }
+.dialog .input { width:100%; min-height:36px; padding:6px 10px; font:inherit; font-size:14px;
+                 color:var(--color-text); caret-color:var(--color-accent);
+                 background:var(--color-bg); border:1px solid var(--color-divider);
+                 border-radius:var(--radius-md); }
+.dialog .input:focus-visible { border-color:var(--color-accent); outline-offset:0; }
+
+.bmc { width:100%; padding:12px; font-family:var(--font-heading); font-weight:700; font-size:14px;
+       background:#ffdd00; border:1px solid #ffdd00; border-radius:var(--radius-md); color:#141414;
+       cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:9px; }
+.bmc:hover { background:#ffe74d; }
+.bmc .cup { font-size:17px; line-height:1; }
+.bmc .lines { display:flex; flex-direction:column; align-items:flex-start; line-height:1.2; }
+.bmc .lines small { font-weight:500; font-size:11px; opacity:.72; }
+
+/* ── overlays ────────────────────────────────────────────────────────────── */
+.backdrop { position:fixed; inset:0; z-index:30; display:none; place-items:center;
+            padding:var(--space-6); overflow:auto;
+            background:color-mix(in srgb, var(--color-neutral-900) 78%, transparent); }
+.backdrop.on { display:grid; }
+#gate { background:var(--color-bg); }
+#gate .dialog { text-align:left; align-items:stretch; }
+
+#toast { position:fixed; left:50%; top:14px; transform:translateX(-50%); z-index:40;
+         background:var(--color-surface); border:1px solid var(--color-divider);
+         border-radius:var(--radius-md); padding:9px 16px; display:none; max-width:70vw;
+         font-size:13px; box-shadow:var(--shadow-md); }
+#toast.err { border-color:#c0453f; background:#3a2626; }
+
+@media (max-width: 860px) {
+  body { overflow:auto; height:auto; }
+  .shell { grid-template-columns:1fr; height:auto; }
+  .rail { border-right:0; border-bottom:1px solid var(--color-divider); }
+  .place { flex-direction:column; }
+  .ctls { width:100%; }
+  #stage { min-height:320px; }
+}
 </style>
 </head>
 <body>
-<div id="gate">
-  <div class="card">
-    <h1>scan-sign</h1>
-    <p>Your name starts a private session. Files stay in memory for that session only —
-       they are never written to the server's disk, and coming back later always starts a
-       fresh session rather than reopening this one.</p>
-    <input type="text" id="gatename" placeholder="Your name" maxlength="40" autocomplete="name">
-    <button class="primary" id="gatego">Start session</button>
-  </div>
-</div>
 
-<div id="coffee">
-  <div class="card">
-    <div class="cup">☕</div>
-    <h1>Your signed PDF is ready</h1>
-    <p><b>scan-sign is free.</b> No account, no watermark on your document, no
-       “three free signatures, then pay”. Your files stay in memory and are never
-       written to a disk.</p>
-    <p>Behind it is one developer, paying out of pocket for the server that just
-       signed your document.</p>
-    <button class="bmc" id="coffee-yes"><span class="mug">☕</span>Buy the developer a coffee</button>
-    <button class="plain" id="coffee-no">Take this one for free</button>
-    <div class="fine">Both buttons download your PDF.</div>
-  </div>
-</div>
+<header class="topbar">
+  <span class="brand">sign<i>·</i>scan<i>·</i>send</span>
+  <span class="host" id="host"></span>
+  <span class="pill-priv" style="margin-left:auto">
+    <svg width="13" height="13" viewBox="0 0 256 256" fill="currentColor"><path d="M208,40H48A16,16,0,0,0,32,56v58.78c0,89.61,75.82,119.34,91,124.39a15.53,15.53,0,0,0,10,0c15.2-5.05,91-34.78,91-124.39V56A16,16,0,0,0,208,40Zm-34.35,69.65-56,56a8,8,0,0,1-11.31,0l-24-24a8,8,0,0,1,11.31-11.31L112,148.69l50.34-50.34a8,8,0,0,1,11.31,11.31Z"></path></svg>
+    <span id="privtext">Everything stays on your device</span>
+  </span>
+</header>
 
-<div id="side">
-  <div id="whoami">
-    <span class="who" id="whoname"></span>
-    <button id="newsession" title="Ends this session and clears its files">New</button>
-  </div>
-  <h2>Document</h2>
-  <div class="slot" id="pdfslot">
-    <div class="top">
-      <span class="name">PDF</span>
-      <label class="file-btn">Choose…<input type="file" id="pdffile" accept="application/pdf,.pdf"></label>
+<div class="shell">
+  <aside class="rail">
+    <div id="whoami">
+      <span class="who" id="whoname"></span>
+      <button class="btn btn-secondary" id="newsession" title="Ends this session and clears its files">New</button>
     </div>
-    <div class="file" id="pdfname">none loaded</div>
-  </div>
 
-  <h2>Overlays</h2>
-  <div id="slots"></div>
-  <div class="hint">Click the page to drop the selected overlay.</div>
+    <nav id="stepper">
+      <button class="step" data-step="1"><span class="step-dot">1</span><span class="step-txt">Add your document</span></button>
+      <div class="step-line"></div>
+      <button class="step" data-step="2"><span class="step-dot">2</span><span class="step-txt">Upload your signature</span></button>
+      <div class="step-line"></div>
+      <button class="step" data-step="3"><span class="step-dot">3</span><span class="step-txt">Add a stamp</span></button>
+      <div class="step-line"></div>
+      <button class="step" data-step="4"><span class="step-dot">4</span><span class="step-txt">Place on the page</span></button>
+      <div class="step-line"></div>
+      <button class="step" data-step="5"><span class="step-dot">5</span><span class="step-txt">Save your signed PDF</span></button>
+    </nav>
 
-  <h2>Page</h2>
-  <div class="row">
-    <button id="prev">◀</button><span id="pageno">– / –</span><button id="next">▶</button>
-  </div>
+    <div class="railcard" id="raildoc" hidden>Your document<b id="raildocname"></b></div>
 
-  <h2>Selected</h2>
-  <div id="info">—</div>
-  <label style="display:block;margin-top:8px">Size <span id="wlab"></span>
-    <input type="range" id="size" min="10" max="400" step="1"></label>
-  <label style="display:block">Angle <span id="alab"></span>
-    <input type="range" id="angle" min="-45" max="45" step="0.5"></label>
-  <button class="wide" id="dup">Duplicate</button>
-  <button class="wide" id="del">Delete</button>
+    <div class="railnote" id="hosted-note" hidden>
+      Files live in this session only, in memory, and are dropped when it ends or goes idle.
+      Nothing is written to disk on the server. For anything sensitive, run sign·scan·send locally —
+      <code>pipx install git+https://github.com/bajicdusko/scan-sign</code>
+    </div>
+  </aside>
 
-  <h2>Scanned look</h2>
-  <label><input type="checkbox" id="scan"> fake a scan</label>
-  <div id="scanbox">
-    <label style="display:block;margin-top:6px">Strength <span id="slab">0.5</span>
-      <input type="range" id="strength" min="0" max="1" step="0.05" value="0.5"></label>
-    <label style="display:block">Max skew <span id="rlab">0.8°</span>
-      <input type="range" id="skew" min="0" max="3" step="0.1" value="0.8"></label>
-    <label><input type="checkbox" id="gray"> grayscale</label><br>
-    <label><input type="checkbox" id="edges"> show paper edges</label><br>
-    <label><input type="checkbox" id="corner" checked> corner damage</label>
-  </div>
+  <main class="pane">
 
-  <h2>Finish</h2>
-  <button class="wide primary" id="download">Download signed PDF</button>
-  <button class="wide" id="save">Save to disk &amp; close</button>
-  <button class="wide" id="quit">Quit</button>
+    <!-- ── 1 · document ────────────────────────────────────────────────── -->
+    <section class="stepbody" data-body="1">
+      <h3>Add the document you want to sign</h3>
+      <p class="lede text-muted" id="pdf-lede">Choose a PDF from your device. It never gets uploaded
+        anywhere — the whole thing happens right here in your browser.</p>
+      <label class="drop" id="drop-pdf">
+        <svg width="42" height="42" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M240,136v64a16,16,0,0,1-16,16H32a16,16,0,0,1-16-16V136a16,16,0,0,1,16-16H80a8,8,0,0,1,0,16H32v64H224V136H176a8,8,0,0,1,0-16h48A16,16,0,0,1,240,136ZM85.66,77.66,120,43.31V128a8,8,0,0,0,16,0V43.31l34.34,34.35a8,8,0,0,0,11.32-11.32l-48-48a8,8,0,0,0-11.32,0l-48,48A8,8,0,0,0,85.66,77.66Z"></path></svg>
+        <div>
+          <div class="drop-title">Drag a PDF here</div>
+          <div class="drop-sub text-muted">or click to choose a file</div>
+        </div>
+        <span class="btn btn-secondary" style="pointer-events:none">Choose a PDF</span>
+        <div class="loaded-name" id="pdf-loaded" hidden></div>
+        <input type="file" id="pdffile" accept="application/pdf,.pdf">
+      </label>
+      <div class="footer">
+        <div class="right">
+          <button class="btn btn-primary" data-next="2" disabled>Continue
+            <svg width="15" height="15" viewBox="0 0 256 256" fill="currentColor"><path d="M90.34,53.66a8,8,0,0,1,11.32-11.32l80,80a8,8,0,0,1,0,11.32l-80,80a8,8,0,0,1-11.32-11.32L164.69,128Z"></path></svg>
+          </button>
+        </div>
+      </div>
+    </section>
 
-  <div class="hint" id="hosted-note" hidden style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px">
-    Files live in this session only, in memory, and are dropped when it ends or goes idle.
-    Nothing is written to disk on the server. For anything sensitive, run scan-sign locally —
-    <code>pipx install git+https://github.com/bajicdusko/scan-sign</code>
-  </div>
+    <!-- ── 2 · signature ───────────────────────────────────────────────── -->
+    <section class="stepbody" data-body="2">
+      <h3>Upload your signature</h3>
+      <p class="lede text-muted">A photo or scan of your signature on paper works fine. We remove the
+        paper background for you, so only the ink lands on the page.</p>
+      <label class="drop" id="drop-signature">
+        <div class="preview" id="prev-signature" hidden><img id="previmg-signature" alt=""></div>
+        <svg id="icon-signature" width="42" height="42" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M216,64H176V56a24,24,0,0,0-24-24H104A24,24,0,0,0,80,56v8H40A16,16,0,0,0,24,80V192a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V80A16,16,0,0,0,216,64ZM96,56a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96Zm88,112H72a8,8,0,0,1,0-16H184a8,8,0,0,1,0,16Z"></path></svg>
+        <div>
+          <div class="drop-title">Drop a photo of your signature</div>
+          <div class="drop-sub text-muted">PNG or JPG · or click to choose</div>
+        </div>
+        <span class="btn btn-secondary" style="pointer-events:none">Choose an image</span>
+        <div class="loaded-name" id="loaded-signature" hidden></div>
+        <input type="file" accept="image/*" data-slot="signature">
+      </label>
+      <div class="notice">
+        <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M232,128a104,104,0,1,1-104-104A104.11,104.11,0,0,1,232,128Zm-40.35-30.34-58.34,58.35L100.34,123a8,8,0,0,0-11.32,11.31l38.35,38.35a8,8,0,0,0,11.31,0l64-64a8,8,0,0,0-11.32-11.32Z"></path></svg>
+        Paper background is removed automatically — fine-tune it later under Advanced options.
+      </div>
+      <div class="footer">
+        <button class="btn btn-secondary" data-next="1">
+          <svg width="15" height="15" viewBox="0 0 256 256" fill="currentColor"><path d="M165.66,202.34a8,8,0,0,1-11.32,11.32l-80-80a8,8,0,0,1,0-11.32l80-80a8,8,0,0,1,11.32,11.32L91.31,128Z"></path></svg>Back
+        </button>
+        <div class="right">
+          <button class="btn btn-primary" data-next="3" disabled>Continue
+            <svg width="15" height="15" viewBox="0 0 256 256" fill="currentColor"><path d="M90.34,53.66a8,8,0,0,1,11.32-11.32l80,80a8,8,0,0,1,0,11.32l-80,80a8,8,0,0,1-11.32-11.32L164.69,128Z"></path></svg>
+          </button>
+        </div>
+      </div>
+    </section>
 
-  <h2>Keys</h2>
-  <div class="hint">
-    <kbd>drag</kbd> move · <kbd>wheel</kbd> size<br>
-    <kbd>[</kbd> <kbd>]</kbd> rotate · <kbd>⇧</kbd> = ×5<br>
-    <kbd>←↑↓→</kbd> nudge · <kbd>⌫</kbd> delete<br>
-    <kbd>tab</kbd> switch overlay · <kbd>enter</kbd> download
+    <!-- ── 3 · stamp ───────────────────────────────────────────────────── -->
+    <section class="stepbody" data-body="3">
+      <h3>Add a company stamp <span class="text-muted" style="font-weight:400;font-size:15px">— optional</span></h3>
+      <p class="lede text-muted">Got an official stamp or seal? Add a photo of it too.
+        Don’t need one? Just skip this step.</p>
+      <label class="drop" id="drop-stamp">
+        <div class="preview" id="prev-stamp" hidden><img id="previmg-stamp" alt=""></div>
+        <svg id="icon-stamp" width="42" height="42" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M224,176H192.83l-9.6-67.24A24,24,0,0,0,159.47,88H144V64.94a32,32,0,1,0-32,0V88H96.53a24,24,0,0,0-23.76,20.76L63.17,176H32a8,8,0,0,0,0,16H224a8,8,0,0,0,0-16ZM216,208H40a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Z"></path></svg>
+        <div>
+          <div class="drop-title">Drop a photo of your stamp</div>
+          <div class="drop-sub text-muted">PNG or JPG · or click to choose</div>
+        </div>
+        <span class="btn btn-secondary" style="pointer-events:none">Choose an image</span>
+        <div class="loaded-name" id="loaded-stamp" hidden></div>
+        <input type="file" accept="image/*" data-slot="stamp">
+      </label>
+      <div class="footer">
+        <button class="btn btn-secondary" data-next="2">
+          <svg width="15" height="15" viewBox="0 0 256 256" fill="currentColor"><path d="M165.66,202.34a8,8,0,0,1-11.32,11.32l-80-80a8,8,0,0,1,0-11.32l80-80a8,8,0,0,1,11.32,11.32L91.31,128Z"></path></svg>Back
+        </button>
+        <div class="right">
+          <button class="btn btn-ghost" data-next="4" id="skipstamp">Skip this step</button>
+          <button class="btn btn-primary" data-next="4" id="stampnext" disabled>Continue
+            <svg width="15" height="15" viewBox="0 0 256 256" fill="currentColor"><path d="M90.34,53.66a8,8,0,0,1,11.32-11.32l80,80a8,8,0,0,1,0,11.32l-80,80a8,8,0,0,1-11.32-11.32L164.69,128Z"></path></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 4 · placement ───────────────────────────────────────────────── -->
+    <section class="stepbody" data-body="4">
+      <h3>Drag your marks into place</h3>
+      <p class="lede text-muted">Click the page to drop the selected mark, move it where it belongs,
+        then drag a corner to resize. What you see is exactly what gets saved.</p>
+      <div class="place">
+        <div id="stagewrap">
+          <div id="stage">
+            <div id="empty">Load a PDF and a signature to get started.</div>
+            <div id="page" hidden>
+              <img class="bg" id="bg" alt="">
+              <div class="vig" id="vig1"></div>
+              <div class="vig" id="vig2"></div>
+            </div>
+          </div>
+          <div class="pagenav">
+            <button id="prev" title="Previous page">
+              <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M165.66,202.34a8,8,0,0,1-11.32,11.32l-80-80a8,8,0,0,1,0-11.32l80-80a8,8,0,0,1,11.32,11.32L91.31,128Z"></path></svg>
+            </button>
+            <span class="n" id="pageno">– / –</span>
+            <button id="next" title="Next page">
+              <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M90.34,53.66a8,8,0,0,1,11.32-11.32l80,80a8,8,0,0,1,0,11.32l-80,80a8,8,0,0,1-11.32-11.32L164.69,128Z"></path></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="ctls">
+          <div class="seg" id="assetseg">
+            <label class="seg-opt"><input type="radio" name="asset" value="signature">Signature</label>
+            <label class="seg-opt"><input type="radio" name="asset" value="stamp">Stamp</label>
+          </div>
+
+          <div class="field">
+            <label>Size <span id="wlab"></span></label>
+            <input type="range" id="size" min="10" max="400" step="1">
+          </div>
+
+          <label class="swrow" id="scanrow">
+            <input type="checkbox" id="scan"><span class="toggle"></span>
+            <span>
+              <span class="t1">Make it look scanned</span><br>
+              <span class="t2" id="scansub">Adds a subtle photocopier feel</span>
+            </span>
+          </label>
+
+          <div class="adv" id="scanadv" hidden>
+            <div class="adv-hd open">
+              <svg class="chev" width="13" height="13" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z"></path></svg>
+              Scan settings
+            </div>
+            <div class="adv-body">
+              <label class="ctl-row"><span>Strength <span class="text-muted" id="slab">0.50</span></span>
+                <input type="range" id="strength" min="0" max="1" step="0.05" value="0.5"></label>
+              <label class="ctl-row"><span>Max skew <span class="text-muted" id="rlab">0.8°</span></span>
+                <input type="range" id="skew" min="0" max="3" step="0.1" value="0.8"></label>
+              <label class="ctl-row"><span>Grayscale</span>
+                <input type="checkbox" id="gray"><span class="toggle"></span></label>
+              <label class="ctl-row"><span>Show paper edges</span>
+                <input type="checkbox" id="edges"><span class="toggle"></span></label>
+              <label class="ctl-row"><span>Corner damage</span>
+                <input type="checkbox" id="corner" checked><span class="toggle"></span></label>
+              <div class="hint">
+                <svg width="13" height="13" viewBox="0 0 256 256" fill="currentColor" style="vertical-align:-2px"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm-8,56a8,8,0,1,1,8,8A8,8,0,0,1,120,80Zm16,104a8,8,0,0,1-8-8V128a8,8,0,0,1,0-16,8,8,0,0,1,8,8v40a8,8,0,0,1,0,16Z"></path></svg>
+                Because the page becomes an image, its text is no longer selectable — that’s the point of a scan.
+              </div>
+            </div>
+          </div>
+
+          <div class="adv">
+            <div class="adv-hd" id="advhd">
+              <svg class="chev" width="13" height="13" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z"></path></svg>
+              Advanced options
+            </div>
+            <div class="adv-body">
+              <div class="field">
+                <label>Rotation <span id="alab"></span></label>
+                <input type="range" id="angle" min="-45" max="45" step="0.5">
+              </div>
+              <label class="ctl-row"><span>Trim paper edges</span>
+                <input type="checkbox" id="bgcut"><span class="toggle"></span></label>
+              <div class="field" id="tolwrap">
+                <label>Tolerance <span class="text-muted" id="tollab"></span></label>
+                <input type="range" id="tol" min="4" max="110" step="2">
+              </div>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-secondary" id="dup" style="flex:1;font-size:12px;padding:6px">Duplicate</button>
+                <button class="btn btn-secondary" id="del" style="flex:1;font-size:12px;padding:6px">Delete</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="info">—</div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <button class="btn btn-secondary" data-next="3">
+          <svg width="15" height="15" viewBox="0 0 256 256" fill="currentColor"><path d="M165.66,202.34a8,8,0,0,1-11.32,11.32l-80-80a8,8,0,0,1,0-11.32l80-80a8,8,0,0,1,11.32,11.32L91.31,128Z"></path></svg>Back
+        </button>
+        <div class="right">
+          <button class="btn btn-primary" data-next="5">Continue
+            <svg width="15" height="15" viewBox="0 0 256 256" fill="currentColor"><path d="M90.34,53.66a8,8,0,0,1,11.32-11.32l80,80a8,8,0,0,1,0,11.32l-80,80a8,8,0,0,1-11.32-11.32L164.69,128Z"></path></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 5 · finish ──────────────────────────────────────────────────── -->
+    <section class="stepbody" data-body="5" style="padding-bottom:26px">
+      <div class="finish">
+        <div class="finish-bg"><img id="finishbg" alt=""></div>
+        <div class="finish-veil"></div>
+        <div class="finish-fg">
+          <div class="dialog">
+            <div class="dialog-icon">
+              <svg width="26" height="26" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M224,152a8,8,0,0,1-8,8H192v16h16a8,8,0,0,1,0,16H192v16a8,8,0,0,1-16,0V152a8,8,0,0,1,8-8h32A8,8,0,0,1,224,152ZM92,172a28,28,0,0,1-28,28H56v8a8,8,0,0,1-16,0V152a8,8,0,0,1,8-8H64A28,28,0,0,1,92,172Zm-16,0a12,12,0,0,0-12-12H56v24h8A12,12,0,0,0,76,172Zm88,8a36,36,0,0,1-36,36H112a8,8,0,0,1-8-8V152a8,8,0,0,1,8-8h16A36,36,0,0,1,164,180Zm-16,0a20,20,0,0,0-20-20h-8v40h8A20,20,0,0,0,148,180ZM40,112V56A16,16,0,0,1,56,40h96a8,8,0,0,1,5.66,2.34l56,56A8,8,0,0,1,216,104v8a8,8,0,0,1-16,0v-4H152a8,8,0,0,1-8-8V56H56v56a8,8,0,0,1-16,0Zm120-20h28.69L160,63.31Z"></path></svg>
+            </div>
+            <div class="dialog-title" id="finish-title">Ready to save</div>
+            <p id="finish-summary"></p>
+            <button class="btn btn-primary btn-block" id="download" style="padding:11px">Create my signed PDF</button>
+            <button class="btn btn-secondary btn-block" id="save" style="padding:9px">Save to disk &amp; close</button>
+            <button class="btn btn-ghost btn-block" id="quit" style="padding:9px">Quit</button>
+            <button class="btn btn-secondary btn-block" data-next="4" style="padding:9px">Back to placement</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ── name gate (hosted) ─────────────────────────────────────────────────── -->
+<div class="backdrop" id="gate">
+  <div class="dialog">
+    <span class="brand" style="font-size:20px">sign<i>·</i>scan<i>·</i>send</span>
+    <div class="dialog-title">Start a private session</div>
+    <p>Your name starts a private session. Files stay in memory for that session only — they are
+       never written to the server’s disk, and coming back later always starts a fresh session
+       rather than reopening this one.</p>
+    <input type="text" class="input" id="gatename" placeholder="Your name" maxlength="40" autocomplete="name">
+    <button class="btn btn-primary btn-block" id="gatego" style="padding:10px">Start session</button>
   </div>
 </div>
 
-<div id="stage">
-  <div id="empty">Load a PDF and a signature to get started.</div>
-  <div id="page" hidden><img class="bg" id="bg"></div>
+<!-- ── coffee ask ─────────────────────────────────────────────────────────── -->
+<div class="backdrop" id="coffee">
+  <div class="dialog">
+    <div class="dialog-icon">
+      <svg width="26" height="26" viewBox="0 0 256 256" fill="var(--color-accent)"><path d="M208,80H32A16,16,0,0,0,16,96v40a72.08,72.08,0,0,0,72,72h48a72.15,72.15,0,0,0,70.92-59.29A40,40,0,0,0,208,80Zm-8,63.66V96h8a24,24,0,0,1,0,47.66ZM88,32a8,8,0,0,1,16,0V48a8,8,0,0,1-16,0Zm32,0a8,8,0,0,1,16,0V48a8,8,0,0,1-16,0Zm32,0a8,8,0,0,1,16,0V48a8,8,0,0,1-16,0Z"></path></svg>
+    </div>
+    <div class="dialog-title">Your signed PDF is ready</div>
+    <p><b>sign·scan·send is completely free</b> — no account, no watermark on your document, no
+       “three free signatures, then pay.” Your files are never stored; they vanish the moment
+       you leave.</p>
+    <p>Behind it is one developer, out to kill the print-sign-scan ritual — and paying out of
+       pocket for the server that just signed your document.</p>
+    <button class="bmc" id="coffee-yes">
+      <span class="cup">☕</span>
+      <span class="lines"><span>Buy the developer a coffee</span><small>and download your signed PDF</small></span>
+    </button>
+    <button class="btn btn-ghost btn-block" id="coffee-no" style="padding:9px">Just download — it’s free</button>
+    <div class="fine">Either way, your signed PDF downloads right now.</div>
+  </div>
 </div>
+
 <div id="toast"></div>
 
 <script>
 const $ = s => document.querySelector(s);
-let DOC = null, placements = [], pageIndex = 0, selected = null, current = null, scale = 1, busy = false;
+const $$ = s => [...document.querySelectorAll(s)];
+let DOC = null, placements = [], pageIndex = 0, selected = null, current = null,
+    scale = 1, busy = false, step = 1, landed = false;
 const el = { page: $('#page'), bg: $('#bg'), info: $('#info'), size: $('#size'), angle: $('#angle') };
+
+$('#host').textContent = location.hostname || '';
 
 function toast(msg, isErr) {
   const t = $('#toast');
@@ -207,8 +602,10 @@ async function api(url, opts) {
   return ct.includes('json') ? res.json() : res.blob();
 }
 
+/* ── session gate ────────────────────────────────────────────────────────── */
 function showGate(message) {
-  DOC = null; placements = []; selected = null; current = null;
+  DOC = null; placements = []; selected = null; current = null; landed = false;
+  goStep(1);
   $('#gate').classList.add('on');
   $('#gatename').focus();
   if (message) toast(message, true);
@@ -230,6 +627,7 @@ async function startSession() {
 
 function slotOf(name) { return DOC.slots.find(s => s.name === name); }
 function loadedSlots() { return DOC.slots.filter(s => s.loaded); }
+function isLoaded(name) { return !!(DOC && slotOf(name) && slotOf(name).loaded); }
 
 async function boot() {
   let m;
@@ -248,6 +646,50 @@ async function boot() {
   applyManifest(m);
 }
 
+/* ── wizard ──────────────────────────────────────────────────────────────── */
+// Steps 2 and 3 need a document; placing and saving need something to place it on.
+function reachable(n) {
+  if (!DOC) return n === 1;
+  if (n === 1) return true;
+  if (n === 2 || n === 3) return !!DOC.pdf;
+  if (n === 4) return !!DOC.pdf && loadedSlots().length > 0;
+  if (n === 5) return !!DOC.pdf;
+  return false;
+}
+
+function stepDone(n) {
+  if (!DOC) return false;
+  if (n === 1) return !!DOC.pdf;
+  if (n === 2) return isLoaded('signature');
+  if (n === 3) return isLoaded('stamp');
+  if (n === 4) return placements.length > 0;
+  return false;
+}
+
+function goStep(n) {
+  if (n !== 1 && !reachable(n)) return;
+  step = n;
+  $$('.stepbody').forEach(s => s.classList.toggle('on', +s.dataset.body === n));
+  $$('#stepper .step').forEach(b => {
+    const i = +b.dataset.step;
+    b.classList.toggle('active', i === n);
+    b.classList.toggle('done', i !== n && stepDone(i));
+    b.dataset.reachable = reachable(i) ? '1' : '0';
+    b.querySelector('.step-dot').textContent = (i !== n && stepDone(i)) ? '✓' : i;
+  });
+  if (n === 4 && DOC && DOC.pdf) showPage(pageIndex);
+  if (n === 5) prepareFinish();
+  updateButtons();
+}
+
+// Where a visitor should land: the first thing still missing, or straight to placement
+// when the CLI already handed us a document and its assets.
+function firstOpenStep() {
+  if (!DOC || !DOC.pdf) return 1;
+  if (!loadedSlots().length) return 2;
+  return 4;
+}
+
 function applyManifest(m, keepPlacements) {
   const hadDoc = DOC && DOC.pdf && m.pdf && DOC.pdf.name === m.pdf.name;
   DOC = m;
@@ -261,70 +703,73 @@ function applyManifest(m, keepPlacements) {
     const first = loadedSlots()[0];
     current = first ? first.name : null;
   }
-  renderSlots();
   // Set here rather than in boot(): hosted mode leaves boot() early for the name gate, and the
   // first manifest it ever sees comes back from /api/start.
-  $('#quit').style.display = m.mode === 'serve' ? '' : 'none';
-  $('#save').style.display = m.mode === 'cli' ? '' : 'none';
+  $('#quit').hidden = m.mode !== 'serve';
+  $('#save').hidden = m.mode !== 'cli';
   $('#save').title = m.output ? 'writes ' + m.output : '';
   if (m.mode === 'hosted') {
     $('#whoami').classList.add('on');
     $('#whoname').textContent = m.name;   // textContent, never innerHTML — it is visitor input
     $('#hosted-note').hidden = false;
+    $('#privtext').textContent = 'In memory only — never written to disk';
   }
-  $('#pdfname').textContent = m.pdf ? m.pdf.name : 'none loaded';
-  $('#pdfslot').classList.toggle('on', !!m.pdf);
+  renderSlotUI();
   if (m.pdf) {
     pageIndex = Math.min(pageIndex, m.pdf.pages.length - 1);
     $('#empty').hidden = true; el.page.hidden = false;
-    showPage(pageIndex);
   } else {
     $('#empty').hidden = false; el.page.hidden = true;
     $('#pageno').textContent = '– / –';
   }
-  updateButtons();
+  if (!landed) { landed = true; goStep(firstOpenStep()); }
+  else goStep(step);
+  if (m.pdf && step === 4) showPage(pageIndex);
 }
 
-function renderSlots() {
-  const box = $('#slots');
-  box.innerHTML = '';
-  DOC.slots.forEach(s => {
-    const d = document.createElement('div');
-    d.className = 'slot' + (s.loaded && s.name === current ? ' on' : '');
-    d.innerHTML =
-      `<div class="top">
-         ${s.loaded ? `<img class="thumb" src="${s.url}">` : ''}
-         <span class="name">${s.name}</span>
-         <label class="file-btn">${s.loaded ? 'Replace…' : 'Choose…'}
-           <input type="file" accept="image/*" data-slot="${s.name}"></label>
-       </div>
-       <div class="file">${s.loaded ? s.filename : 'none loaded'}</div>
-       ${s.loaded ? `<div class="opts">
-          <label><input type="checkbox" data-bg="${s.name}" ${s.bg_removed ? 'checked' : ''}>
-            cut paper background</label>
-          <div data-tolwrap="${s.name}" style="${s.bg_removed ? '' : 'display:none'}">
-            tolerance <span data-tollab="${s.name}">${s.bg_tolerance}</span>
-            <input type="range" data-tol="${s.name}" min="4" max="110" step="2" value="${s.bg_tolerance}">
-          </div></div>` : ''}`;
-    d.querySelector('input[type=file]').addEventListener('change', e => upload(s.name, e.target.files[0]));
-    const bg = d.querySelector('input[data-bg]');
-    if (bg) bg.addEventListener('change', () => setBg(s.name, {mode: bg.checked ? 'always' : 'never'}));
-    const tol = d.querySelector('input[data-tol]');
-    if (tol) {
-      tol.addEventListener('input', () => d.querySelector(`[data-tollab="${s.name}"]`).textContent = tol.value);
-      tol.addEventListener('change', () => setBg(s.name, {tolerance: +tol.value}));
+/* ── slots (document, signature, stamp) ──────────────────────────────────── */
+function renderSlotUI() {
+  const pdf = DOC && DOC.pdf;
+  $('#pdf-loaded').hidden = !pdf;
+  if (pdf) $('#pdf-loaded').textContent = 'Loaded · ' + pdf.name;
+  $('#pdf-lede').textContent = pdf
+    ? 'Loaded and ready. Drop another PDF here to swap it out — that clears any marks you placed.'
+    : 'Choose a PDF from your device. It never gets uploaded anywhere — the whole thing happens right here in your browser.';
+  $('#raildoc').hidden = !pdf;
+  if (pdf) $('#raildocname').textContent = pdf.name;
+
+  ['signature', 'stamp'].forEach(n => {
+    const s = DOC && slotOf(n), on = !!(s && s.loaded);
+    $('#prev-' + n).hidden = !on;
+    $('#icon-' + n).style.display = on ? 'none' : '';
+    $('#loaded-' + n).hidden = !on;
+    if (on) {
+      $('#previmg-' + n).src = s.url;
+      $('#loaded-' + n).textContent = 'Loaded · ' + s.filename;
+      $(`#drop-${n} .drop-title`).textContent = 'Replace this ' + n;
+    } else {
+      $(`#drop-${n} .drop-title`).textContent =
+        n === 'signature' ? 'Drop a photo of your signature' : 'Drop a photo of your stamp';
     }
-    if (s.loaded) d.addEventListener('click', e => {
-      if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'LABEL') setAsset(s.name);
-    });
-    box.appendChild(d);
+    const radio = $(`#assetseg input[value="${n}"]`);
+    radio.disabled = !on;
+    radio.checked = on && current === n;
   });
+  syncBgControls();
 }
 
-function setAsset(name) {
-  current = name;
-  [...document.querySelectorAll('#slots .slot')].forEach((d, i) =>
-    d.classList.toggle('on', DOC.slots[i].loaded && DOC.slots[i].name === name));
+// The paper-trim controls act on whichever mark is selected, falling back to the
+// asset the segmented control has active.
+function bgTarget() { return (selected && selected.asset) || current; }
+
+function syncBgControls() {
+  const s = DOC && bgTarget() && slotOf(bgTarget());
+  const on = !!(s && s.loaded);
+  $('#bgcut').disabled = !on;
+  $('#tol').disabled = !on;
+  $('#bgcut').checked = on && !!s.bg_removed;
+  $('#tolwrap').style.display = on && s.bg_removed ? '' : 'none';
+  if (on) { $('#tol').value = s.bg_tolerance; $('#tollab').textContent = s.bg_tolerance; }
 }
 
 async function upload(kind, file) {
@@ -349,11 +794,28 @@ async function setBg(name, payload) {
               toast(e.message, true); }
 }
 
+function setAsset(name) {
+  if (!isLoaded(name)) return;
+  current = name;
+  const radio = $(`#assetseg input[value="${name}"]`);
+  if (radio) radio.checked = true;
+  syncBgControls();
+}
+
+/* ── page + overlays ─────────────────────────────────────────────────────── */
+function stageBox() {
+  const st = $('#stage');
+  const w = st.clientWidth || Math.min(window.innerWidth - 252 - 400, 1000);
+  const h = st.clientHeight || window.innerHeight - 260;
+  return {w: Math.max(160, w - 8), h: Math.max(160, h - 8)};
+}
+
 function showPage(i) {
+  if (!DOC || !DOC.pdf) return;
   pageIndex = i;
   const p = DOC.pdf.pages[i];
-  const maxW = Math.min(window.innerWidth - 262 - 80, 1000), maxH = window.innerHeight - 60;
-  scale = Math.min(maxW / p.width, maxH / p.height);
+  const box = stageBox();
+  scale = Math.min(box.w / p.width, box.h / p.height);
   el.page.style.width = p.width * scale + 'px';
   el.page.style.height = p.height * scale + 'px';
   if (el.bg.getAttribute('src') !== p.url) el.bg.src = p.url;
@@ -385,20 +847,35 @@ function updateButtons() {
   $('#save').disabled = !ready;
   ['#prev', '#next'].forEach(s => $(s).disabled = !(DOC && DOC.pdf));
   ['#dup', '#del'].forEach(s => $(s).disabled = !selected);
+  el.size.disabled = !selected;
+  el.angle.disabled = !selected;
+  $$('[data-next]').forEach(b => {
+    const t = +b.dataset.next;
+    if (t > step) b.disabled = !reachable(t);
+  });
+  // On the stamp step, "Continue" means "I added one" — leaving without a stamp is what
+  // Skip is for, and that only needs something else to place.
+  $('#stampnext').disabled = !(isLoaded('stamp') && reachable(4));
+  $('#skipstamp').disabled = !reachable(4);
 }
 
 function updateInfo() {
-  if (!selected) { el.info.textContent = '—'; $('#wlab').textContent = ''; $('#alab').textContent = ''; return; }
+  if (!selected) {
+    el.info.textContent = DOC && DOC.pdf
+      ? 'Nothing selected — click the page to drop the mark you picked above.' : '—';
+    $('#wlab').textContent = ''; $('#alab').textContent = '';
+    return;
+  }
   const h = selected.width_pt * slotOf(selected.asset).aspect, mm = v => (v / 72 * 25.4).toFixed(0);
-  el.info.textContent = `${selected.asset}\npage ${selected.page + 1}\n${mm(selected.width_pt)} × ${mm(h)} mm\n` +
-                        `angle ${selected.angle.toFixed(1)}°`;
+  el.info.textContent = `${selected.asset} · page ${selected.page + 1}\n${mm(selected.width_pt)} × ${mm(h)} mm · ` +
+                        `${selected.angle.toFixed(1)}°`;
   el.size.value = Math.min(400, Math.max(10, selected.width_pt));
   el.angle.value = Math.max(-45, Math.min(45, selected.angle));
   $('#wlab').textContent = mm(selected.width_pt) + ' mm';
   $('#alab').textContent = selected.angle.toFixed(1) + '°';
 }
 
-function select(p) { selected = p; render(); }
+function select(p) { selected = p; syncBgControls(); render(); }
 
 function startDrag(e, p) {
   e.stopPropagation();
@@ -439,15 +916,55 @@ el.page.addEventListener('wheel', e => {
   render();
 }, { passive: false });
 
+/* ── drag & drop onto the zones ──────────────────────────────────────────── */
+function wireDrop(zone, kind) {
+  ['dragenter', 'dragover'].forEach(t => zone.addEventListener(t, e => {
+    e.preventDefault(); zone.classList.add('over');
+  }));
+  ['dragleave', 'drop'].forEach(t => zone.addEventListener(t, () => zone.classList.remove('over')));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) upload(kind, f);
+  });
+}
+wireDrop($('#drop-pdf'), 'pdf');
+wireDrop($('#drop-signature'), 'signature');
+wireDrop($('#drop-stamp'), 'stamp');
+// A file dropped anywhere else would otherwise navigate away from the session.
+['dragover', 'drop'].forEach(t => window.addEventListener(t, e => e.preventDefault()));
+
+/* ── wiring ──────────────────────────────────────────────────────────────── */
+$$('[data-next]').forEach(b => b.addEventListener('click', () => goStep(+b.dataset.next)));
+$$('#stepper .step').forEach(b => b.addEventListener('click', () => goStep(+b.dataset.step)));
+$('#pdffile').addEventListener('change', e => upload('pdf', e.target.files[0]));
+$$('input[data-slot]').forEach(i =>
+  i.addEventListener('change', e => upload(i.dataset.slot, e.target.files[0])));
+$$('#assetseg input').forEach(r => r.addEventListener('change', () => setAsset(r.value)));
+$$('.adv-hd').forEach(h => h.addEventListener('click', () => h.classList.toggle('open')));
+
 el.size.addEventListener('input', () => { if (selected) { selected.width_pt = +el.size.value; render(); } });
 el.angle.addEventListener('input', () => { if (selected) { selected.angle = +el.angle.value; render(); } });
-$('#pdffile').addEventListener('change', e => upload('pdf', e.target.files[0]));
-$('#scan').addEventListener('change', e => $('#scanbox').classList.toggle('on', e.target.checked));
+
+$('#bgcut').addEventListener('change', e => {
+  const n = bgTarget();
+  if (n) setBg(n, {mode: e.target.checked ? 'always' : 'never'});
+});
+$('#tol').addEventListener('input', () => $('#tollab').textContent = $('#tol').value);
+$('#tol').addEventListener('change', () => { const n = bgTarget(); if (n) setBg(n, {tolerance: +$('#tol').value}); });
+
+$('#scan').addEventListener('change', e => {
+  $('#scanadv').hidden = !e.target.checked;
+  $('#scanrow').classList.toggle('on', e.target.checked);
+  $('#scansub').textContent = e.target.checked
+    ? 'On · page rendered like a scan' : 'Adds a subtle photocopier feel';
+  el.page.classList.toggle('scanned', e.target.checked);
+});
 $('#strength').addEventListener('input', e => $('#slab').textContent = (+e.target.value).toFixed(2));
 $('#skew').addEventListener('input', e => $('#rlab').textContent = (+e.target.value).toFixed(1) + '°');
 
-$('#prev').onclick = () => DOC.pdf && pageIndex > 0 && showPage(pageIndex - 1);
-$('#next').onclick = () => DOC.pdf && pageIndex < DOC.pdf.pages.length - 1 && showPage(pageIndex + 1);
+$('#prev').onclick = () => DOC && DOC.pdf && pageIndex > 0 && showPage(pageIndex - 1);
+$('#next').onclick = () => DOC && DOC.pdf && pageIndex < DOC.pdf.pages.length - 1 && showPage(pageIndex + 1);
 $('#del').onclick = () => { if (selected) { placements = placements.filter(p => p !== selected); selected = null; render(); } };
 $('#dup').onclick = () => {
   if (!selected) return;
@@ -464,6 +981,17 @@ function scanOptions() {
     keep_edges: $('#edges').checked,
     corner_damage: $('#corner').checked,
   };
+}
+
+/* ── finish ──────────────────────────────────────────────────────────────── */
+function prepareFinish() {
+  if (!DOC || !DOC.pdf) return;
+  $('#finishbg').src = DOC.pdf.pages[Math.min(pageIndex, DOC.pdf.pages.length - 1)].url;
+  const marks = placements.length, pages = DOC.pdf.pages.length;
+  $('#finish-summary').textContent =
+    `${DOC.pdf.name} · ${pages} page${pages === 1 ? '' : 's'} · ` +
+    `${marks} mark${marks === 1 ? '' : 's'} placed` +
+    ($('#scan').checked ? ' · rendered as a scan' : '');
 }
 
 // Asked once the file is actually built, so the ask lands on a finished job — and never
@@ -497,7 +1025,7 @@ function askCoffee() {
 }
 
 $('#download').onclick = async () => {
-  if (busy || !DOC.pdf) return;
+  if (busy || !DOC || !DOC.pdf) return;
   busy = true; updateButtons();
   $('#download').textContent = 'Building…';
   try {
@@ -512,9 +1040,10 @@ $('#download').onclick = async () => {
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 30000);
     toast('downloaded ' + a.download);
+    $('#finish-title').textContent = 'Your signed PDF is downloaded';
   } catch (e) { if (e.needsName) showGate('session ended — start a new one');
-                 else toast('render failed — ' + e.message, true); }
-  finally { busy = false; $('#download').textContent = 'Download signed PDF'; updateButtons(); }
+                else toast('render failed — ' + e.message, true); }
+  finally { busy = false; $('#download').textContent = 'Create my signed PDF'; updateButtons(); }
 };
 
 $('#save').onclick = () => finish('/api/save', placements, 'Saved — back to the terminal.');
@@ -536,17 +1065,20 @@ async function finish(url, body, msg) {
   document.body.innerHTML = `<div style="margin:auto;padding:40px;font-size:15px">${msg}</div>`;
 }
 
+/* ── keyboard ────────────────────────────────────────────────────────────── */
 window.addEventListener('keydown', e => {
-  if (e.target.tagName === 'INPUT') return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
   if ($('#coffee').classList.contains('on') || $('#gate').classList.contains('on')) return;
-  const step = e.shiftKey ? 10 : 1, rot = e.shiftKey ? 5 : 1;
+  if (step === 5 && e.key === 'Enter') { e.preventDefault(); return $('#download').click(); }
+  if (step !== 4) return;
+  const stepPx = e.shiftKey ? 10 : 1, rot = e.shiftKey ? 5 : 1;
   const map = {
-    ArrowLeft: () => nudge(-step, 0), ArrowRight: () => nudge(step, 0),
-    ArrowUp: () => nudge(0, -step), ArrowDown: () => nudge(0, step),
+    ArrowLeft: () => nudge(-stepPx, 0), ArrowRight: () => nudge(stepPx, 0),
+    ArrowUp: () => nudge(0, -stepPx), ArrowDown: () => nudge(0, stepPx),
     '[': () => rotate(rot), ']': () => rotate(-rot),
     '{': () => rotate(5), '}': () => rotate(-5),
     Backspace: () => $('#del').click(), Delete: () => $('#del').click(),
-    Enter: () => $('#download').click(),
+    Enter: () => goStep(5),
     Tab: () => { const n = loadedSlots().map(s => s.name);
                  if (n.length) setAsset(n[(n.indexOf(current) + 1) % n.length]); },
     PageDown: () => $('#next').click(), PageUp: () => $('#prev').click(),
@@ -555,7 +1087,7 @@ window.addEventListener('keydown', e => {
 });
 function nudge(dx, dy) { if (selected) { selected.cx += dx; selected.cy += dy; render(); } }
 function rotate(d) { if (selected) { selected.angle += d; render(); } }
-window.addEventListener('resize', () => { if (DOC && DOC.pdf) showPage(pageIndex); });
+window.addEventListener('resize', () => { if (step === 4 && DOC && DOC.pdf) showPage(pageIndex); });
 // placements live in the tab only — don't lose them to a stray reload
 window.addEventListener('beforeunload', e => { if (placements.length) { e.preventDefault(); e.returnValue = ''; } });
 

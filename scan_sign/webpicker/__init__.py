@@ -255,6 +255,10 @@ def _handler(store):
                 raise ValueError(f"upload too large (limit {MAX_UPLOAD_BYTES // (1024 * 1024)} MB)")
             return self.rfile.read(length) if length else b""
 
+        def _landing(self) -> bytes:
+            html = (HERE / "landing.html").read_bytes()
+            return html.replace(b"__SUPPORT_URL__", SUPPORT_URL.encode())
+
         def _cookie(self) -> str | None:
             jar = SimpleCookie(self.headers.get("Cookie", ""))
             return jar[COOKIE].value if COOKIE in jar else None
@@ -271,8 +275,18 @@ def _handler(store):
                 return
             s, path = self.session, self.path.split("?")[0]
             try:
+                # Locally the tool *is* the app, so "/" opens it. A public instance gets the
+                # landing page as its front door and the app one click away at /app.
                 if path in ("/", "/index.html"):
+                    path = "/landing" if store.hosted else "/app"
+                if path == "/app":
                     return self._send((HERE / "index.html").read_bytes(), "text/html; charset=utf-8")
+                if path == "/landing":
+                    return self._send(self._landing(), "text/html; charset=utf-8")
+                # Which claim the landing page may make about privacy depends on the mode, and
+                # it has no session to ask.
+                if path == "/api/mode":
+                    return self._json({"mode": "hosted" if store.hosted else "local"})
                 if s is None:
                     return self._no_session()
 
