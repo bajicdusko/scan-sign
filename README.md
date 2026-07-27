@@ -141,7 +141,12 @@ and can't be used to get back into a session later.
 | `PORT` | `8080` | listen port |
 | `SCAN_SIGN_MAX_UPLOAD_MB` | `25` | per-file upload cap |
 | `SCAN_SIGN_MAX_PAGES` | `40` | reject PDFs longer than this |
-| `SCAN_SIGN_SUPPORT_URL` | my Buy Me a Coffee page | the tip link offered next to a finished download; set it empty to drop the prompt |
+| `SCAN_SIGN_SUPPORT_URL` | my Buy Me a Coffee page | the tip link offered on the landing page and next to a finished download; set it empty to drop both |
+
+Point `SCAN_SIGN_SUPPORT_URL` at your own Buy Me a Coffee page and the landing page's footer bar
+renders their button for your account. Point it anywhere else and it falls back to a plain link,
+so a tip never reaches an account you didn't choose. Empty it and the ask leaves the bar
+altogether — including the request to their CDN.
 
 A `railway.json` and `Procfile` are included, so `railway up` deploys it as-is.
 
