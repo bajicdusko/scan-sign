@@ -11,6 +11,8 @@ import secrets
 import threading
 import time
 
+from .memory import release_free_memory
+
 
 class SingleSession:
     """One shared session; the local tool has exactly one user."""
@@ -58,34 +60,49 @@ class CookieSessions:
         """Always a brand new session; whatever this browser had before is dropped."""
         now = time.monotonic()
         with self.lock:
-            if cookie_value:
-                self._drop(cookie_value)
-            self._evict(now)
+            dropped = bool(cookie_value) and self._drop(cookie_value)
+            dropped = self._evict(now) or dropped
             token = secrets.token_urlsafe(18)
             session = self.factory()
             session.name = name
             self.sessions[token] = session
             self.seen[token] = now
-            return session, token
+        self._reclaim(dropped)
+        return session, token
 
     def end(self, cookie_value: str | None) -> None:
         with self.lock:
-            if cookie_value:
-                self._drop(cookie_value)
+            dropped = bool(cookie_value) and self._drop(cookie_value)
+        self._reclaim(dropped)
 
     def sweep(self) -> None:
         with self.lock:
-            self._evict(time.monotonic())
+            dropped = self._evict(time.monotonic())
+        self._reclaim(dropped)
 
-    def _evict(self, now: float) -> None:
+    def _reclaim(self, dropped: bool) -> None:
+        """A closed session freed a document and its page rasters; give the pages back to the OS.
+
+        Always outside the store lock — trimming takes milliseconds, and every request waits on
+        that lock to find its session.
+        """
+        if dropped:
+            release_free_memory()
+
+    def _evict(self, now: float) -> bool:
+        dropped = False
         for token, seen in list(self.seen.items()):
             if now - seen > self.ttl:
-                self._drop(token)
+                dropped = self._drop(token) or dropped
         while len(self.sessions) >= self.max_sessions:
-            self._drop(min(self.seen, key=self.seen.get))
+            dropped = self._drop(min(self.seen, key=self.seen.get)) or dropped
+        return dropped
 
-    def _drop(self, token: str) -> None:
+    def _drop(self, token: str) -> bool:
+        """True when a session was really closed, so callers know there is memory to reclaim."""
         session = self.sessions.pop(token, None)
         self.seen.pop(token, None)
-        if session is not None:
-            session.close()
+        if session is None:
+            return False
+        session.close()
+        return True
