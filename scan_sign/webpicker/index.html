@@ -268,23 +268,6 @@ input[type=range]:disabled { opacity:.4; }
         color:color-mix(in srgb, var(--color-text) 45%, transparent); }
 
 /* ── overlays ────────────────────────────────────────────────────────────── */
-.backdrop { position:fixed; inset:0; z-index:30; display:none; place-items:center;
-            padding:var(--space-6); overflow:auto;
-            background:color-mix(in srgb, var(--color-neutral-900) 78%, transparent); }
-.backdrop.on { display:grid; }
-#gate { background:var(--color-bg); }
-.dialog { width:min(420px,100%); display:flex; flex-direction:column; gap:var(--space-3);
-          padding:var(--space-6); border-radius:var(--radius-lg); background:var(--color-surface);
-          box-shadow:var(--shadow-lg); text-align:left; }
-.dialog-title { font-family:var(--font-heading); font-weight:500; font-size:20px; }
-.dialog p { font-size:13px; margin:0; line-height:1.65;
-            color:color-mix(in srgb, var(--color-text) 82%, transparent); }
-.dialog .input { width:100%; min-height:36px; padding:6px 10px; font:inherit; font-size:14px;
-                 color:var(--color-text); caret-color:var(--color-accent);
-                 background:var(--color-bg); border:1px solid var(--color-divider);
-                 border-radius:var(--radius-md); }
-.dialog .input:focus-visible { border-color:var(--color-accent); outline-offset:0; }
-
 #toast { position:fixed; left:50%; top:14px; transform:translateX(-50%); z-index:40;
          background:var(--color-surface); border:1px solid var(--color-divider);
          border-radius:var(--radius-md); padding:9px 16px; display:none; max-width:70vw;
@@ -323,7 +306,7 @@ input[type=range]:disabled { opacity:.4; }
   <aside class="rail">
     <div id="whoami">
       <span class="who" id="whoname"></span>
-      <button class="btn btn-secondary" id="newsession" title="Ends this session and clears its files">New</button>
+      <button class="btn btn-secondary" id="newsession" title="Starts a fresh session and drops this one's files">New</button>
     </div>
 
     <nav id="stepper">
@@ -655,19 +638,6 @@ input[type=range]:disabled { opacity:.4; }
   </section>
 </div>
 
-<!-- ── name gate (hosted) ─────────────────────────────────────────────────── -->
-<div class="backdrop" id="gate" role="dialog" aria-modal="true" aria-labelledby="gatetitle">
-  <div class="dialog">
-    <span class="brand" style="font-size:20px">sign<i>·</i>scan<i>·</i>send</span>
-    <div class="dialog-title" id="gatetitle">Start a private session</div>
-    <p>Your name starts a private session. Files stay in memory for that session only — they are
-       never written to the server’s disk, and coming back later always starts a fresh session
-       rather than reopening this one.</p>
-    <input type="text" class="input" id="gatename" placeholder="Your name" maxlength="40" autocomplete="name">
-    <button class="btn btn-primary btn-block" id="gatego" style="padding:10px">Start session</button>
-  </div>
-</div>
-
 <div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <script>
@@ -699,46 +669,26 @@ async function api(url, opts) {
   const ct = res.headers.get('Content-Type') || '';
   if (!res.ok) {
     const payload = ct.includes('json') ? await res.json() : {error: await res.text()};
-    if (res.status === 409 && payload.needs_name) {
-      const e = new Error('session ended'); e.needsName = true; throw e;
+    if (res.status === 409 && payload.needs_session) {
+      const e = new Error('session ended'); e.needsSession = true; throw e;
     }
     throw new Error(payload.error || res.status);
   }
   return ct.includes('json') ? res.json() : res.blob();
 }
 
-/* ── session gate ────────────────────────────────────────────────────────── */
-// The gate covers the app, so the app behind it is made inert: without that, Tab walks
-// straight out of the dialog into a wizard that has no session to work on.
-function gateOpen(on) {
-  $('#gate').classList.toggle('on', on);
-  ['.topbar', '.shell'].forEach(s => {
-    const n = $(s);
-    if (on) n.setAttribute('inert', ''); else n.removeAttribute('inert');
-  });
-}
-
-function showGate(message) {
+/* ── session ─────────────────────────────────────────────────────────────── */
+// Hosted sessions need no introduction: opening the app is the whole ceremony. The server
+// hands back a throwaway label so the rail has something to show and two tabs can be told
+// apart, and /api/start always drops whatever this browser held before.
+async function startSession(message) {
   DOC = null; placements = []; selected = null; landed = false;
   visited.clear();
   goStep(1);
-  gateOpen(true);
-  $('#gatename').focus();
-  if (message) toast(message, true);
-}
-
-async function startSession() {
-  const name = $('#gatename').value.trim();
-  if (!name) { $('#gatename').focus(); return toast('type a name to start', true); }
-  $('#gatego').disabled = true;
   try {
-    const m = await api('/api/start', {method: 'POST', headers: {'Content-Type': 'application/json'},
-                                       body: JSON.stringify({name})});
-    gateOpen(false);
-    applyManifest(m);
-    toast('session started for ' + m.name);
-  } catch (e) { toast('could not start — ' + e.message, true); }
-  finally { $('#gatego').disabled = false; }
+    applyManifest(await api('/api/start', {method: 'POST'}));
+    if (message) toast(message, true);
+  } catch (e) { toast('could not start a session — ' + e.message, true); }
 }
 
 function slotOf(name) { return DOC.slots.find(s => s.name === name); }
@@ -752,15 +702,12 @@ async function boot() {
   try {
     m = await api('/api/doc');
   } catch (e) {
-    if (e.needsName) return showGate();   // hosted, and this browser has no live session
+    if (e.needsSession) return startSession();   // hosted, and this browser has no live session
     throw e;
   }
-  if (m.mode === 'hosted') {
-    // Loading the page is "starting again": drop whatever this browser still held and
-    // make them name a fresh session, so nothing carries over between visits.
-    await fetch('/api/end', {method: 'POST'}).catch(() => {});
-    return showGate();
-  }
+  // Loading the page is "starting again": a fresh session drops whatever this browser still
+  // held, so nothing carries over between visits.
+  if (m.mode === 'hosted') return startSession();
   applyManifest(m);
 }
 
@@ -909,14 +856,14 @@ async function upload(kind, file) {
     });
     applyManifest(m, kind !== 'pdf');
     toast(`${kind}: ${file.name}`);
-  } catch (e) { if (e.needsName) return showGate('session ended — start a new one');
+  } catch (e) { if (e.needsSession) return startSession('session expired — started a fresh one');
                  toast('could not load ' + file.name + ' — ' + e.message, true); }
 }
 
 async function setBg(name, payload) {
   try { applyManifest(await api('/api/bg/' + name, {
     method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)}), true); }
-  catch (e) { if (e.needsName) return showGate('session ended — start a new one');
+  catch (e) { if (e.needsSession) return startSession('session expired — started a fresh one');
               toast(e.message, true); }
 }
 
@@ -1268,7 +1215,7 @@ async function download(tip) {
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 30000);
     toast('downloaded ' + a.download);
-  } catch (e) { if (e.needsName) showGate('session ended — start a new one');
+  } catch (e) { if (e.needsSession) startSession('session expired — started a fresh one');
                 else toast('render failed — ' + e.message, true); }
   finally { busy = false; btn.innerHTML = label; updateButtons(); }
 }
@@ -1278,15 +1225,10 @@ $('#dl-free').onclick = () => download(false);
 
 $('#save').onclick = () => finish('/api/save', placements, 'Saved — back to the terminal.');
 $('#quit').onclick = () => finish('/api/quit', null, 'Stopped. You can close this tab.');
-$('#gatego').onclick = startSession;
-$('#gatename').addEventListener('keydown', e => { if (e.key === 'Enter') startSession(); });
-$('#newsession').onclick = async () => {
-  if (placements.length && !confirm('End this session? Its files are dropped.')) return;
-  try { await fetch('/api/end', {method: 'POST'}); } catch (e) { /* ending is best-effort */ }
-  $('#whoami').classList.remove('on');
-  $('#gatename').value = '';
+$('#newsession').onclick = () => {
+  if (placements.length && !confirm('Start over? This session’s files are dropped.')) return;
   el.page.hidden = true; $('#empty').hidden = false;
-  showGate();
+  startSession();   // /api/start drops the old session on its way to making the new one
 };
 
 async function finish(url, body, msg) {

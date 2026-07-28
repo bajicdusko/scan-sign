@@ -58,7 +58,7 @@ here too.
 python -m scan_sign.server
 ```
 
-The public flavour: visitors name their own session. See [Hosting it](#hosting-it).
+The public flavour: opening the app starts a session. See [Hosting it](#hosting-it).
 
 ## Placing
 
@@ -120,12 +120,12 @@ back to an automatic bottom-of-the-last-page placement.
 
 ## Hosting it
 
-`python -m scan_sign.server` runs the same UI as a public service. There is no login: a visitor
-types a name, which starts a private session for that browser.
+`python -m scan_sign.server` runs the same UI as a public service. There is no login and nothing
+to fill in: opening the app starts a private session for that browser.
 
 - Sessions live **in memory only** — nothing is ever written to the server's disk.
-- Sessions are **never resumed**. Loading the page ends whatever that browser still held and
-  asks for a name again, so coming back always starts fresh and nobody inherits the files of
+- Sessions are **never resumed**. Loading the page starts a new one and drops whatever that
+  browser still held, so coming back always starts fresh and nobody inherits the files of
   whoever used the browser before them.
 - They are dropped on **New**, after 30 minutes idle, or when the 40-session cap evicts the
   oldest.
@@ -133,8 +133,9 @@ types a name, which starts a private session for that browser.
   the process.
 - Uploads, page counts and the render DPI are capped, so one request can't exhaust the container.
 
-The name is a label, not a credential. It identifies your session in the UI; it protects nothing
-and can't be used to get back into a session later.
+Each session gets a throwaway label like `Session 7QK2`, shown in the rail so two tabs can be
+told apart. It is not a credential: it protects nothing and can't be used to get back into a
+session later.
 
 | env var | default | purpose |
 | --- | --- | --- |

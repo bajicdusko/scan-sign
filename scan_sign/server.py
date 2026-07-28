@@ -1,6 +1,6 @@
 """Hosted entry point: `python -m scan_sign.server`.
 
-Reads the platform's PORT. Visitors name their own session; sessions are held in memory,
+Reads the platform's PORT. Opening the app starts a session; sessions are held in memory,
 never resumed, and dropped when idle.
 """
 
