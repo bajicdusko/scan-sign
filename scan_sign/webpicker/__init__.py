@@ -20,6 +20,7 @@ from PIL import Image
 from ..assets import DEFAULT_TOLERANCE, DEFAULT_WIDTHS, load_asset_bytes
 from ..compose import Placement, apply_placements
 from ..scanify import scanify_document
+from .memory import release_free_memory
 from .sessions import CookieSessions, SingleSession
 
 HERE = Path(__file__).parent
@@ -216,7 +217,12 @@ class Session:
             finally:
                 doc.close()
             stem = Path(self.pdf_name or "document.pdf").stem
-            return data, f"{stem}-signed.pdf"
+            result = (data, f"{stem}-signed.pdf")
+
+        # Outside the lock: the rasters this render just dropped are the biggest allocation the
+        # process makes, and reclaiming them should not hold up the next request.
+        release_free_memory()
+        return result
 
 
 def clean_name(raw: str) -> str:
