@@ -1,8 +1,8 @@
 """Session lookup for the HTTP layer.
 
-Locally there is exactly one session — the files the CLI already loaded. Hosted, a visitor names
-themselves to start one, and it is never resumed: coming back means starting fresh, so nobody
-inherits the documents of whoever used the browser before them.
+Locally there is exactly one session — the files the CLI already loaded. Hosted, opening the app
+starts one, and it is never resumed: coming back means starting fresh, so nobody inherits the
+documents of whoever used the browser before them.
 """
 
 from __future__ import annotations
@@ -12,6 +12,15 @@ import threading
 import time
 
 from .memory import release_free_memory
+
+# Unambiguous characters only: the label is meant to be read off the screen and said out loud,
+# so no pairs that look alike in the rail's small type (0/O, 1/I/L, 5/S, 8/B).
+_LABEL_ALPHABET = "ACDEFGHJKMNPQRTUVWXY2346789"
+
+
+def _session_label() -> str:
+    """A throwaway handle for one session — enough to tell two tabs apart, and nothing personal."""
+    return "Session " + "".join(secrets.choice(_LABEL_ALPHABET) for _ in range(4))
 
 
 class SingleSession:
@@ -25,7 +34,7 @@ class SingleSession:
     def resolve(self, cookie_value: str | None):
         return self.session, None
 
-    def start(self, cookie_value: str | None, name: str):
+    def start(self, cookie_value: str | None):
         return self.session, None
 
     def end(self, cookie_value: str | None) -> None:
@@ -56,7 +65,7 @@ class CookieSessions:
                 self.seen[cookie_value] = time.monotonic()
             return session, None
 
-    def start(self, cookie_value: str | None, name: str):
+    def start(self, cookie_value: str | None):
         """Always a brand new session; whatever this browser had before is dropped."""
         now = time.monotonic()
         with self.lock:
@@ -64,7 +73,7 @@ class CookieSessions:
             dropped = self._evict(now) or dropped
             token = secrets.token_urlsafe(18)
             session = self.factory()
-            session.name = name
+            session.name = _session_label()
             self.sessions[token] = session
             self.seen[token] = now
         self._reclaim(dropped)

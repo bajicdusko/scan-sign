@@ -225,12 +225,6 @@ class Session:
         return result
 
 
-def clean_name(raw: str) -> str:
-    """A display label, nothing more — it is echoed back into the page."""
-    name = re.sub(r"[\x00-\x1f\x7f]", "", str(raw or "")).strip()
-    return name[:40]
-
-
 def _parse_placements(items) -> list[Placement]:
     return [
         Placement(
@@ -303,7 +297,7 @@ def _handler(store):
             return True
 
         def _no_session(self) -> None:
-            self._json({"mode": "hosted", "needs_name": True}, 409)
+            self._json({"mode": "hosted", "needs_session": True}, 409)
 
         def do_GET(self):
             if not self._begin():
@@ -344,10 +338,7 @@ def _handler(store):
                 # Starting is the one thing you can do without a session, and it always makes a
                 # new one — a returning visitor never lands back inside the previous session.
                 if path == "/api/start":
-                    name = clean_name(json.loads(self._body() or b"{}").get("name"))
-                    if not name:
-                        return self._json({"error": "a name is required to start"}, 400)
-                    self.session, self._new_cookie = store.start(self._cookie(), name)
+                    self.session, self._new_cookie = store.start(self._cookie())
                     return self._json(self.session.manifest())
 
                 if path == "/api/end":

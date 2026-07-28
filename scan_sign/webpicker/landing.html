@@ -89,13 +89,12 @@ svg { display:block; }
              margin:10px 0 clamp(24px,3vw,32px); font-size:clamp(15px,1.6vw,17px);
              color:var(--color-accent-200); }
 .rebellion svg { flex:none; margin-top:5px; }   /* stays on the first line when the copy wraps */
-.cta { display:flex; width:100%; justify-content:center; align-items:center; gap:10px;
+.cta { display:flex; width:100%; justify-content:center; align-items:center;
        background:var(--color-accent); color:#15131f; font-family:var(--font-heading);
        font-weight:700; font-size:clamp(17px,1.8vw,21px); letter-spacing:-.01em;
        padding:clamp(18px,2.2vw,24px) 24px; border-radius:14px; text-align:center;
        box-shadow:0 10px 28px color-mix(in srgb, var(--color-accent) 40%, transparent);
        transition:transform .12s ease, box-shadow .12s ease; }
-.cta svg { flex:none; }
 .cta:hover { color:#15131f; transform:translateY(-2px);
              box-shadow:0 16px 40px color-mix(in srgb, var(--color-accent) 55%, transparent); }
 .cta:active { transform:translateY(0); }
@@ -166,10 +165,10 @@ footer.has-widget .bmc { display:none; }
     <div>
       <span class="kicker" data-i18n="ritualKicker">Signing digital documents today</span>
       <ol class="ritual">
-        <li data-i18n="ritual1">1. Print it.</li>
-        <li data-i18n="ritual2">2. Sign it.</li>
-        <li data-i18n="ritual3">3. Scan it.</li>
-        <li data-i18n="ritual4">4. Send it back.</li>
+        <li data-i18n="ritual1">1. Print.</li>
+        <li data-i18n="ritual2">2. Sign.</li>
+        <li data-i18n="ritual3">3. Scan.</li>
+        <li data-i18n="ritual4">4. Send.</li>
       </ol>
       <div class="sigh">
         <span class="emoji">😤</span>
@@ -184,8 +183,7 @@ footer.has-widget .bmc { display:none; }
         <span data-i18n="rebellion">This is a small rebellion against bureaucracy.</span>
       </p>
       <a href="/app" class="cta">
-        <span data-i18n="cta">Sign a document — free</span>
-        <svg width="20" height="20" viewBox="0 0 256 256" fill="currentColor"><path d="M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z"></path></svg>
+        <span data-i18n="cta">Sign a document for free</span>
       </a>
       <div class="no-catch" data-i18n="noCatch">It’s actually free — no catch.</div>
       <div data-i18n="noCatchSub">No account · no trial · no watermark · nothing stored.</div>
@@ -239,14 +237,14 @@ const STRINGS = {
     description: 'Drop a photo of your signature onto a PDF, optionally make it look scanned, ' +
                  'and download it. Free, no account, nothing stored.',
     ritualKicker: 'Signing digital documents today',
-    ritual1: '1. Print it.',
-    ritual2: '2. Sign it.',
-    ritual3: '3. Scan it.',
-    ritual4: '4. Send it back.',
+    ritual1: '1. Print.',
+    ritual2: '2. Sign.',
+    ritual3: '3. Scan.',
+    ritual4: '4. Send.',
     sigh: 'Every. Single. Time.',
     pitchTitle: 'Not anymore.',
     rebellion: 'This is a small rebellion against bureaucracy.',
-    cta: 'Sign a document — free',
+    cta: 'Sign a document for free',
     noCatch: 'It’s actually free — no catch.',
     noCatchSub: 'No account · no trial · no watermark · nothing stored.',
     privacyTitle: 'Private & free',
@@ -268,11 +266,11 @@ const STRINGS = {
     ritual1: '1. Odštampaj.',
     ritual2: '2. Potpiši.',
     ritual3: '3. Skeniraj.',
-    ritual4: '4. Pošalji nazad.',
+    ritual4: '4. Pošalji.',
     sigh: 'Svaki. Put.',
     pitchTitle: 'Više ne.',
     rebellion: 'Ovo je mala pobuna protiv birokratije.',
-    cta: 'Potpišite dokument — besplatno',
+    cta: 'Potpišite dokument besplatno',
     noCatch: 'Zaista je besplatno — nema kvake.',
     noCatchSub: 'Bez naloga · bez probnog perioda · bez vodenog žiga · ništa se ne pohranjuje.',
     privacyTitle: 'Privatno i besplatno',
@@ -295,11 +293,11 @@ const STRINGS = {
     ritual1: '1. Одштампај.',
     ritual2: '2. Потпиши.',
     ritual3: '3. Скенирај.',
-    ritual4: '4. Пошаљи назад.',
+    ritual4: '4. Пошаљи.',
     sigh: 'Сваки. Пут.',
     pitchTitle: 'Више не.',
     rebellion: 'Ово је мала побуна против бирократије.',
-    cta: 'Потпишите документ — бесплатно',
+    cta: 'Потпишите документ бесплатно',
     noCatch: 'Заиста је бесплатно — нема кваке.',
     noCatchSub: 'Без налога · без пробног периода · без воденог жига · ништа се не чува.',
     privacyTitle: 'Приватно и бесплатно',
