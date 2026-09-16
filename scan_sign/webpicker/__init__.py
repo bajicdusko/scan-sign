@@ -8,11 +8,12 @@ import os
 import re
 import threading
 import time
+import unicodedata
 import webbrowser
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
+from urllib.parse import quote, unquote, urlsplit
 
 import fitz
 from PIL import Image
@@ -39,6 +40,24 @@ MAX_SCAN_DPI = 200
 SUPPORT_URL = os.environ.get("SCAN_SIGN_SUPPORT_URL", "https://buymeacoffee.com/bajicdusko").strip()
 
 BMC_HOSTS = ("buymeacoffee.com", "buymeacoff.ee")
+
+
+def _content_disposition(filename: str) -> str:
+    """An RFC 6266 attachment header that survives ``send_header``'s strict latin-1 encoding.
+
+    The plain ``filename=`` gets an ASCII fallback (NFKD-stripped, quotes/backslashes/controls
+    removed); the real name rides along as ``filename*=UTF-8''...`` only when it differs.
+    """
+    ascii_name = unicodedata.normalize("NFKD", filename).encode("ascii", "ignore").decode()
+    ascii_name = re.sub(r'[\x00-\x1f\x7f"\\]', "", ascii_name).strip(" .")
+    if ascii_name.lower() in ("", ".pdf", "pdf"):
+        ascii_name = "document-signed.pdf"
+    elif not ascii_name.lower().endswith(".pdf"):
+        ascii_name += ".pdf"
+    value = f'attachment; filename="{ascii_name}"'
+    if ascii_name != filename:
+        value += f"; filename*=UTF-8''{quote(filename, safe='')}"
+    return value
 
 
 def bmc_slug(url: str) -> str | None:
@@ -371,7 +390,7 @@ def _handler(store):
                     return self._send(
                         data,
                         "application/pdf",
-                        extra={"Content-Disposition": f'attachment; filename="{filename}"'},
+                        extra={"Content-Disposition": _content_disposition(filename)},
                     )
 
                 # Handing results back to a terminal, and stopping the process, only make sense
